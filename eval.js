@@ -127,29 +127,27 @@
     };
 
     // gates
-    (circuit.chips || []).forEach((chip) =>
-      (chip.gates || []).forEach((gate) => {
-        let asts;
-        try {
-          asts = (gate.constraints || []).map(parseExpr);
-        } catch (e) {
-          rows.forEach(() => {});
-          return; // parse errors surface via validate(), not here
-        }
-        rows.forEach((row, i) => {
-          if (!row.selectors?.[gate.selector]) return;
-          asts.forEach((ast, ci) => {
-            const v = evalAt(ast, i, valueAt);
-            const name = `${gate.name || gate.selector}[${ci}]`;
-            if (v === undefined) record(row.id, "gate", name, undefined, "missing values");
-            else {
-              const ok = norm(v) === 0n;
-              record(row.id, "gate", name, ok, ok ? "" : `${gate.constraints[ci]} = ${norm(v)} ≠ 0`);
-            }
-          });
+    [...(circuit.gates || []), ...(circuit.chips || []).flatMap((c) => c.gates || [])].forEach((gate) => {
+      let asts;
+      try {
+        asts = (gate.constraints || []).map(parseExpr);
+      } catch (e) {
+        rows.forEach(() => {});
+        return; // parse errors surface via validate(), not here
+      }
+      rows.forEach((row, i) => {
+        if (!row.selectors?.[gate.selector]) return;
+        asts.forEach((ast, ci) => {
+          const v = evalAt(ast, i, valueAt);
+          const name = `${gate.name || gate.selector}[${ci}]`;
+          if (v === undefined) record(row.id, "gate", name, undefined, "missing values");
+          else {
+            const ok = norm(v) === 0n;
+            record(row.id, "gate", name, ok, ok ? "" : `${gate.constraints[ci]} = ${norm(v)} ≠ 0`);
+          }
         });
-      })
-    );
+      });
+    });
 
     // lookups
     const tableByName = new Map((circuit.tables || []).map((t) => [t.name, t]));

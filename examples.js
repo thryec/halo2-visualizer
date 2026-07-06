@@ -103,11 +103,11 @@ window.HALO2_EXAMPLES = [
   {
     id: "fibonacci",
     label: "Fibonacci (rotation gate)",
-    blurb: "one column — the gate reads 3 rows at once, no copies needed",
+    blurb: "chipless — the gate is declared inline in configure(), like one-off logic usually is",
     circuit: {
       title: "Fibonacci — one column, rotation gate",
       subtitle:
-        "One advice column; the gate reads three rows at once (fib, fib@next, fib@2), so no copy constraints are needed. Compare with AddMulChip, which wires values with copies instead.",
+        "One advice column; the gate reads three rows at once (fib, fib@next, fib@2), so no copy constraints are needed. Compare with AddMulChip, which wires values with copies instead. The gate is declared inline — no chip — because nothing else reuses it.",
       columns: {
         advice: ["fib"],
         selectors: ["q_fib"],
@@ -115,14 +115,9 @@ window.HALO2_EXAMPLES = [
         fixed: []
       },
       equality: ["fib", "instance"],
-      chips: [
-        {
-          name: "FibChip",
-          columns: ["fib"],
-          gates: [
-            { name: "fib gate", selector: "q_fib", constraints: ["fib + fib@next - fib@2"] }
-          ]
-        }
+      chips: [],
+      gates: [
+        { name: "fib gate", selector: "q_fib", constraints: ["fib + fib@next - fib@2"] }
       ],
       rows: [
         {

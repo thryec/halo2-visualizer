@@ -50,6 +50,7 @@ window.generateRust = function (circuit) {
 
   const gateBySelector = new Map();
   chips.forEach((chip) => (chip.gates || []).forEach((g) => gateBySelector.set(g.selector, { chip, gate: g })));
+  (circuit.gates || []).forEach((g) => gateBySelector.set(g.selector, { chip: null, gate: g }));
 
   const methodName = (gate) =>
     gate.name
@@ -255,6 +256,11 @@ window.generateRust = function (circuit) {
   push("#[derive(Clone)]", "config");
   push("pub struct CircuitConfig {", "config");
   instance.forEach((c) => push(`    ${ident(c)}: Column<Instance>,`, "config", { col: c }));
+  const inlineSels = selectors.filter((sel) => {
+    const hit = gateBySelector.get(sel);
+    return hit && hit.chip === null;
+  });
+  inlineSels.forEach((sel) => push(`    ${ident(sel)}: Selector,`, "config", { col: sel }));
   tables.forEach((t) =>
     t.columns.forEach((c) => push(`    ${tableColVar(t, c)}: TableColumn,`, "config"))
   );
@@ -312,6 +318,24 @@ window.generateRust = function (circuit) {
     push("        });", "config");
     push("");
   });
+  inlineSels.forEach((s) =>
+    push(`        let ${ident(s)} = meta.selector();   // inline gate, no chip`, "config", { col: s })
+  );
+  if (inlineSels.length) push("");
+  (circuit.gates || []).forEach((g) => {
+    const constraints = g.constraints || [];
+    const refs = exprRefs(constraints) || [];
+    push(`        meta.create_gate("${g.name || g.selector}", |meta| {`, "config", { col: g.selector });
+    pushQueries(refs, "            ", "config");
+    push(`            let ${ident(g.selector)} = meta.query_selector(${ident(g.selector)});`, "config", { col: g.selector });
+    push("            vec![", "config");
+    constraints.forEach((c) =>
+      push(`                ${ident(g.selector)}.clone() * (${exprToRust(c)}),`, "config", { col: g.selector })
+    );
+    push("            ]", "config");
+    push("        });", "config");
+    push("");
+  });
   chips.forEach((chip) => {
     const args = (chip.columns || []).map(ident).join(", ");
     push(`        let ${chipVar(chip)} = ${ident(chip.name)}::configure(meta, ${args});`, "config");
@@ -319,6 +343,7 @@ window.generateRust = function (circuit) {
   push(
     `        CircuitConfig { ${[
       ...instance.map(ident),
+      ...inlineSels.map(ident),
       ...tables.flatMap((t) => t.columns.map((c) => tableColVar(t, c))),
       ...chips.map(chipVar)
     ].join(", ")} }`,
@@ -368,6 +393,7 @@ window.generateRust = function (circuit) {
     const sel = activeSel(r)[0];
     const hit = gateBySelector.get(sel);
     if (!hit) return push(`        // row ${r.id}: selector ${sel} has no gate defined`, "synth", { row: r.id });
+    if (!hit.chip) return push(`        // row ${r.id} (${r.op || ""}): inline gate "${hit.gate.name || hit.gate.selector}" — assigned directly in a region`, "synth", { row: r.id });
     const chipCols = hit.chip.columns || [];
     if (chipCols.length < 3 || !r.cells?.[chipCols[chipCols.length - 1]]) {
       return push(`        // row ${r.id} (${r.op || ""}): does not fit the 2-in/1-out convention`, "synth", { row: r.id });

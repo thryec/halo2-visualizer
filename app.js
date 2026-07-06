@@ -150,6 +150,14 @@ function validate(circuit) {
     }
   };
 
+  (circuit.gates || []).forEach((g, gi) => {
+    const where = `gates[${gi}] (${g.name || g.selector})`;
+    if (!selectorNames.has(g.selector)) errors.push(`${where}: unknown selector "${g.selector}"`);
+    if (!Array.isArray(g.constraints) || !g.constraints.length)
+      errors.push(`${where}: "constraints" must be a non-empty array of expressions`);
+    else g.constraints.forEach((c) => checkExpr(c, where));
+  });
+
   (circuit.chips || []).forEach((chip, ci) =>
     (chip.gates || []).forEach((g, gi) => {
       const where = `chips[${ci}].gates[${gi}] (${g.name || g.selector})`;
@@ -229,6 +237,7 @@ function derive(circuit) {
 
   // selector -> gate (for row accents + tags)
   const gateOf = new Map();
+  (circuit.gates || []).forEach((g) => gateOf.set(g.selector, g));
   (circuit.chips || []).forEach((chip) =>
     (chip.gates || []).forEach((g) => gateOf.set(g.selector, g))
   );
@@ -652,7 +661,25 @@ function renderCellDetail(key) {
 function renderSidePanels() {
   const { circuit, derived: d } = state;
 
-  els.chipsList.innerHTML = (circuit.chips || [])
+  const inlineCard = (circuit.gates || []).length
+    ? `
+      <div class="chip-card">
+        <span class="chip-name">circuit</span>
+        <span class="chip-cols">inline gates — no chip</span>
+        ${(circuit.gates || [])
+          .map(
+            (g, gi) =>
+              `<div class="gate-line" data-gate="inline.${gi}"><span class="sel-tag">${esc(g.selector)}</span>` +
+              (g.constraints || [])
+                .map((c) => `<span class="gate-c">${esc(g.selector)} · (${esc(c)}) = 0</span>`)
+                .join("<br>") +
+              `</div>`
+          )
+          .join("")}
+      </div>`
+    : "";
+
+  els.chipsList.innerHTML = (inlineCard + (circuit.chips || [])
     .map(
       (chip, ci) => `
       <div class="chip-card">
@@ -670,7 +697,7 @@ function renderSidePanels() {
           .join("")}
       </div>`
     )
-    .join("") || `<div class="cell-detail">none</div>`;
+    .join("")) || `<div class="cell-detail">none</div>`;
   bindGateHover();
 
   const lookupsEl = document.getElementById("lookupsList");
@@ -758,8 +785,10 @@ function clearHoverHighlights() {
 
 function bindGateHover() {
   document.querySelectorAll(".gate-line[data-gate]").forEach((el) => {
-    const [ci, gi] = el.dataset.gate.split(".").map(Number);
-    const gate = state.circuit.chips?.[ci]?.gates?.[gi];
+    const [ci, gi] = el.dataset.gate.split(".");
+    const gate = ci === "inline"
+      ? state.circuit.gates?.[Number(gi)]
+      : state.circuit.chips?.[Number(ci)]?.gates?.[Number(gi)];
     if (!gate) return;
     el.addEventListener("mouseenter", () => highlightGateCells(gate));
     el.addEventListener("mouseleave", clearHoverHighlights);
@@ -871,10 +900,40 @@ function renderConfigure() {
         }
         <p class="own-note">secret values only — structure lives in the boxes below.</p>`;
 
+  const gateCardsHtml = (gates) =>
+    (gates || [])
+      .map((g) => {
+        const cls = `g-${gateKind(g.name)}`;
+        const rots = new Set();
+        try {
+          (g.constraints || []).forEach((c) =>
+            window.HALO2_EVAL.refsOf(window.HALO2_EVAL.parseExpr(c)).forEach((r) => rots.add(r.rot))
+          );
+        } catch {}
+        const span = Math.max(...[...rots, 0]) - Math.min(...[...rots, 0]) + 1;
+        return `
+            <div class="gate-card ${cls}">
+              <span class="gate-name">${esc(g.name || "gate")}</span>
+              <span class="sel-tag">${esc(g.selector)}</span>
+              ${span > 1 ? `<span class="rot-badge" title="reads ${span} consecutive rows via rotations">↕ ${span} rows</span>` : ""}
+              ${(g.constraints || [])
+                .map((c) => `<div class="gate-expr">${esc(g.selector)} · (${esc(c)}) = 0</div>`)
+                .join("")}
+            </div>`;
+      })
+      .join("");
+
   const circuitBody = `
         <span class="micro-label">creates all columns — advice at circuit level so chips can share</span>
         <div class="col-strips">${circuitStrips}</div>
-        <p class="own-note">⇄ equality = column may appear in copy constraints.</p>`;
+        <p class="own-note">⇄ equality = column may appear in copy constraints.</p>${
+          (circuit.gates || []).length
+            ? `
+        <span class="micro-label">owns · gates — declared inline, no chip</span>
+        ${gateCardsHtml(circuit.gates)}
+        <p class="own-note">inline gates = one-off logic. Move gates into a chip when several circuits would reuse them.</p>`
+            : ""
+        }`;
 
   const sections = [];
 
@@ -900,27 +959,7 @@ function renderConfigure() {
 
   chips.forEach((chip) => {
     const cols = (chip.columns || []).map(esc).join(", ");
-    const gates = (chip.gates || [])
-      .map((g) => {
-        const cls = `g-${gateKind(g.name)}`;
-        const rots = new Set();
-        try {
-          (g.constraints || []).forEach((c) =>
-            window.HALO2_EVAL.refsOf(window.HALO2_EVAL.parseExpr(c)).forEach((r) => rots.add(r.rot))
-          );
-        } catch {}
-        const span = Math.max(...[...rots, 0]) - Math.min(...[...rots, 0]) + 1;
-        return `
-            <div class="gate-card ${cls}">
-              <span class="gate-name">${esc(g.name || "gate")}</span>
-              <span class="sel-tag">${esc(g.selector)}</span>
-              ${span > 1 ? `<span class="rot-badge" title="reads ${span} consecutive rows via rotations">↕ ${span} rows</span>` : ""}
-              ${(g.constraints || [])
-                .map((c) => `<div class="gate-expr">${esc(g.selector)} · (${esc(c)}) = 0</div>`)
-                .join("")}
-            </div>`;
-      })
-      .join("");
+    const gates = gateCardsHtml(chip.gates);
     const owned = (chip.gates || [])
       .map((g) => `<span class="sel-tag">${esc(g.selector)} = meta.selector()</span>`)
       .join(" ");

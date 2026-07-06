@@ -16,7 +16,7 @@ Open http://localhost:8000. No build step, no dependencies. Opening `index.html`
 
 ## Views
 
-- **configure** — the ownership story: `MyCircuit` holds only witness values; `Circuit::configure()` creates every column (advice at circuit level so chips can share) and enables equality; each chip borrows the advice columns passed to it and owns its selectors and gates. Lookup arguments and their tables get their own box. Gates that read multiple rows show a `↕ n rows` rotation badge.
+- **configure** — the ownership story: `MyCircuit` holds only witness values; `Circuit::configure()` creates every column (advice at circuit level so chips can share) and enables equality; each chip borrows the advice columns passed to it and owns its selectors and gates. Gates can live inside chips (reusable) or at the top level (inline, one-off) — the configure walkthrough shows which is which. Lookup arguments and their tables get their own box. Gates that read multiple rows show a `↕ n rows` rotation badge.
 - **synthesize** — the filled trace. Step through rows with the player (or ←/→) to watch cells get assigned, selectors switch on, and copy wires land. Consecutive rows in the same region are grouped with a heavier border. Cells sharing a color square belong to the same equality net; click a cell to see its wires and details. The **ok** column shows per-row gate + lookup results; the banner in the player bar totals every check. Lookup tables render under the trace; hovering a lookup card highlights the cells it constrains.
 - **code** — homework-style Rust generated from the loaded circuit, color-coded by where each piece lives (`MyCircuit` / chip config / `CircuitConfig` / `synthesize()`), shown next to the trace. Hover a line to light up the column or row it creates or fills. Rotation gates emit `Rotation::next()` / `Rotation(2)` queries; lookups emit `meta.lookup` blocks and an `assign_table` skeleton. Rows that don't fit a generatable convention get honest `/* ... */` comments instead of guesses.
 
@@ -52,6 +52,9 @@ Edit via the JSON drawer and press Render (or Cmd/Ctrl+Enter). Schema:
       { "name": "fib gate", "selector": "q_fib", "constraints": ["fib + fib@next - fib@2"] }
     ]
   }],
+  "gates": [                            // optional: circuit-owned gates, declared inline
+    { "name": "fib gate", "selector": "q_fib", "constraints": ["fib + fib@next - fib@2"] }
+  ],
   "tables": [{                          // lookup tables, filled via assign_table
     "name": "range16",
     "columns": ["range"],
