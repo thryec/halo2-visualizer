@@ -363,6 +363,29 @@ body.no-circuit .layout {
   margin: 0 auto;
 }
 
+.layout.code-collapsed { grid-template-columns: 30fr 66fr 42px; }
+.layout.shape-collapsed { grid-template-columns: 42px 62fr 34fr; }
+.layout.shape-collapsed.code-collapsed { grid-template-columns: 42px 1fr 42px; }
+
+.pane-rail { display: none; }
+.layout.shape-collapsed #paneShape > :not(.pane-rail),
+.layout.code-collapsed #paneCode > :not(.pane-rail) { display: none; }
+.layout.shape-collapsed #paneShape .pane-rail,
+.layout.code-collapsed #paneCode .pane-rail { display: block; }
+.layout.shape-collapsed #paneShape,
+.layout.code-collapsed #paneCode { padding: 8px 4px; overflow: hidden; }
+.pane-rail {
+  background: none; border: none; cursor: pointer; width: 100%;
+  color: var(--dim); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+}
+.pane-rail span { writing-mode: vertical-rl; white-space: nowrap; }
+.pane-rail:hover { color: var(--text); }
+.pane-toggle {
+  background: none; border: 1px solid var(--line-strong); border-radius: 3px;
+  color: var(--dim); cursor: pointer; font-size: 10px; padding: 1px 6px; margin-left: 8px;
+}
+.pane-toggle:hover { color: var(--text); border-color: var(--advice); }
+
 @media (min-width: 1840px) {
   .layout {
     border-left: 1px solid var(--line);
@@ -374,7 +397,7 @@ body.no-circuit .layout {
   min-width: 0;
   max-height: calc(100vh - 48px);
   overflow-y: auto;
-  padding: 14px 16px;
+  padding: 14px 18px;
 }
 
 .pane + .pane {
@@ -388,6 +411,9 @@ body.no-circuit .layout {
   padding: 6px 0;
   margin: 0 0 10px;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .page-head {
@@ -929,7 +955,7 @@ tr.row-fail td.cell:not(.sel-on) {
 
 .code-lines {
   padding: 8px 0;
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.55;
 }
 
@@ -1320,6 +1346,11 @@ tr.code-hi-row td {
   .layout {
     grid-template-columns: 1fr;
   }
+
+  .layout.shape-collapsed, .layout.code-collapsed, .layout.shape-collapsed.code-collapsed { grid-template-columns: 1fr; }
+  .pane-rail { display: none !important; }
+  .layout.shape-collapsed #paneShape > :not(.pane-rail),
+  .layout.code-collapsed #paneCode > :not(.pane-rail) { display: revert; }
 
   .pane {
     max-height: none;

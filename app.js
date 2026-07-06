@@ -1623,6 +1623,16 @@ function init() {
   window.addEventListener("resize", drawWires);
   document.getElementById("shareBtn").addEventListener("click", shareCircuit);
 
+  document.querySelector(".layout").classList.add("code-collapsed");
+  document.querySelectorAll(".pane-toggle, .pane-rail").forEach((el) =>
+    el.addEventListener("click", () => {
+      const pane = el.closest(".pane");
+      const cls = pane.id === "paneShape" ? "shape-collapsed" : "code-collapsed";
+      document.querySelector(".layout").classList.toggle(cls);
+      drawWires();
+    })
+  );
+
   const hash = location.hash.slice(1);
   if (hash.startsWith("c=") || hash.startsWith("u=")) {
     decodeShareHash(hash)

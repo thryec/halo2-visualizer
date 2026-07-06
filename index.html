@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Halo2 Trace Inspector</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="./styles.css?v=8" />
+    <link rel="stylesheet" href="./styles.css?v=9" />
   </head>
   <body>
     <header class="topbar">
@@ -127,8 +127,9 @@
     </div>
 
     <main class="layout">
-      <section id="paneShape" class="pane">
-        <h2 class="pane-title micro-label">shape — configure()</h2>
+      <section id="paneShape" class="pane collapsible">
+        <h2 class="pane-title micro-label">shape — configure()<button class="pane-toggle" type="button" title="collapse">◀</button></h2>
+        <button class="pane-rail" type="button" title="expand"><span>shape — configure()</span></button>
 
         <div id="configView" class="config-view"></div>
 
@@ -180,16 +181,17 @@
         </section>
       </section>
 
-      <section id="paneCode" class="pane">
-        <h2 class="pane-title micro-label">code — generated Rust</h2>
+      <section id="paneCode" class="pane collapsible">
+        <h2 class="pane-title micro-label"><button class="pane-toggle" type="button" title="collapse">▶</button>code — generated Rust</h2>
+        <button class="pane-rail" type="button" title="expand"><span>code — generated Rust</span></button>
         <div id="codePane" class="code-pane"></div>
       </section>
     </main>
 
-    <script src="./eval.js?v=8"></script>
-    <script src="./examples.js?v=8"></script>
-    <script src="./builder.js?v=8"></script>
-    <script src="./codegen.js?v=8"></script>
-    <script src="./app.js?v=8"></script>
+    <script src="./eval.js?v=9"></script>
+    <script src="./examples.js?v=9"></script>
+    <script src="./builder.js?v=9"></script>
+    <script src="./codegen.js?v=9"></script>
+    <script src="./app.js?v=9"></script>
   </body>
 </html>
