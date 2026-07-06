@@ -797,8 +797,7 @@ function renderTables() {
       const shown = t.rows.slice(0, CAP);
       return `
       <div class="table-block" data-table="${esc(t.name)}">
-        <div class="table-head">lookup table · <strong>${esc(t.name)}</strong>
-          <span class="micro-label">loaded once in synthesize() via assign_table</span></div>
+        <div class="table-head" title="loaded once in synthesize() via assign_table">lookup table · <strong>${esc(t.name)}</strong></div>
         <table class="mini-table">
           <thead><tr><th></th>${t.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead>
           <tbody>

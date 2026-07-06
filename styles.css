@@ -437,9 +437,22 @@ body.no-circuit .layout {
 
 /* ---------- trace grid ---------- */
 
+.trace-band {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.trace-band > .tables-view {
+  margin-top: 0;
+}
+
 .grid-scroll {
   overflow-x: auto;
   padding-bottom: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .grid-wrap {
@@ -895,10 +908,11 @@ tr.row-fail td.cell:not(.sel-on) {
   grid-column: 1;
 }
 
-.stage.view-code > .grid-scroll {
+.stage.view-code > .trace-band {
   grid-column: 2;
   position: sticky;
   top: 10px;
+  flex-direction: column;
 }
 
 .code-pane {
@@ -1323,7 +1337,7 @@ tr.code-hi-row td {
     display: block;
   }
 
-  .stage.view-code > .grid-scroll {
+  .stage.view-code > .trace-band {
     position: static;
     margin-top: 14px;
   }
