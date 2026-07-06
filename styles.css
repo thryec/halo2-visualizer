@@ -1041,6 +1041,14 @@ tr.code-hi-row td {
   border-bottom: none;
 }
 
+.own-head.own-toggle {
+  cursor: pointer;
+}
+
+.own-head.own-toggle:hover {
+  background: #182230;
+}
+
 .own-box + .own-box {
   margin-top: 8px;
 }

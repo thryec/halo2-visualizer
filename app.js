@@ -50,7 +50,7 @@ const state = {
   derived: null,
   view: "synthesize",
   step: 0,
-  configStep: 0,
+  configOpen: null,
   playing: false,
   timer: null,
   practice: false,
@@ -944,39 +944,42 @@ function renderConfigure() {
     });
   }
 
-  state.configStep = Math.max(0, Math.min(state.configStep, sections.length - 1));
+  if (!(state.configOpen instanceof Set)) state.configOpen = new Set([0]);
+  const open = state.configOpen;
+  [...open].forEach((i) => { if (i >= sections.length) open.delete(i); });
 
   els.configView.innerHTML = `
     <div class="config-nav">
-      <button id="cfgPrev" class="btn ghost" type="button">◀</button>
       <button id="cfgNext" class="btn" type="button">next ▶</button>
-      <span class="step-counter">step ${state.configStep + 1}/${sections.length}</span>
+      <button id="cfgAll" class="btn ghost" type="button">${open.size === sections.length ? "collapse all" : "open all"}</button>
+      <span class="step-counter">${open.size}/${sections.length} open — click any header to toggle</span>
     </div>
     ${sections
       .map((s, i) =>
-        i === state.configStep
-          ? `<div class="own-box t-${s.kind} open"><div class="own-head">${i + 1} · ${s.title}</div><div class="own-body">${s.html}</div></div>`
+        open.has(i)
+          ? `<div class="own-box t-${s.kind} open"><div class="own-head own-toggle" data-cfg="${i}" title="click to collapse">${i + 1} · ${s.title}</div><div class="own-body">${s.html}</div></div>`
           : `<button type="button" class="own-box own-collapsed t-${s.kind}" data-cfg="${i}"><div class="own-head">${i + 1} · ${s.title}</div></button>`
       )
       .join("")}`;
 
-  const prev = document.getElementById("cfgPrev");
   const next = document.getElementById("cfgNext");
-  prev.disabled = state.configStep === 0;
-  const last = state.configStep === sections.length - 1;
-  next.textContent = last ? "done ✓" : "next ▶";
-  next.disabled = last;
-  prev.onclick = () => {
-    state.configStep = Math.max(0, state.configStep - 1);
+  const firstClosed = sections.findIndex((_, i) => !open.has(i));
+  next.textContent = firstClosed === -1 ? "done ✓" : "next ▶";
+  next.disabled = firstClosed === -1;
+  next.onclick = () => {
+    if (firstClosed !== -1) open.add(firstClosed);
     renderConfigure();
   };
-  next.onclick = () => {
-    state.configStep = Math.min(sections.length - 1, state.configStep + 1);
+  document.getElementById("cfgAll").onclick = () => {
+    if (open.size === sections.length) { open.clear(); open.add(0); }
+    else sections.forEach((_, i) => open.add(i));
     renderConfigure();
   };
   els.configView.querySelectorAll("[data-cfg]").forEach((el) => {
     el.onclick = () => {
-      state.configStep = Number(el.dataset.cfg);
+      const i = Number(el.dataset.cfg);
+      if (open.has(i)) open.delete(i);
+      else open.add(i);
       renderConfigure();
     };
   });
@@ -1183,7 +1186,7 @@ function loadCircuit(circuit) {
   state.check = window.HALO2_EVAL.checkCircuit(circuit, state.derived);
   state.selection = null;
   state.step = 0; // trace builds up via the player
-  state.configStep = 0;
+  state.configOpen = new Set([0]);
   // open on configure — same order you write a circuit: shape first, then synthesize
   state.view = "configure";
   els.tabs.forEach((t) => {
