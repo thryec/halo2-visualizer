@@ -356,20 +356,38 @@ body.no-circuit .layout {
 
 .layout {
   display: grid;
-  grid-template-columns: var(--shape-w, 30fr) 6px 38fr 32fr;
+  grid-template-columns: var(--shape-w, 30fr) 10px 38fr 32fr;
   gap: 0;
   align-items: start;
   max-width: 1800px;
   margin: 0 auto;
 }
 
-.layout.code-collapsed { grid-template-columns: var(--shape-w, 30fr) 6px 66fr 42px; }
+.layout.code-collapsed { grid-template-columns: var(--shape-w, 30fr) 10px 66fr 42px; }
 .layout.shape-collapsed { grid-template-columns: 42px 0 62fr 34fr; }
 .layout.shape-collapsed.code-collapsed { grid-template-columns: 42px 0 1fr 42px; }
 
 .pane-resizer {
   cursor: col-resize;
   border-left: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  margin-left: -4px;
+  color: var(--faint);
+  font-size: 13px;
+  user-select: none;
+}
+
+.pane-resizer::after {
+  content: "⋮";
+  position: sticky;
+  top: 50vh;
+}
+
+.pane-resizer:hover {
+  color: var(--advice);
 }
 
 .pane-resizer:hover,
