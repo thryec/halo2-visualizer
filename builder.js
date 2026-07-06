@@ -59,7 +59,11 @@ window.buildCircuit = function (statement, witnessStr) {
     if (peek() === "^") {
       next();
       const e = next();
-      if (!/^\d+$/.test(e || "")) throw new Error(`"^" needs an integer exponent, got "${e}"`);
+      if (!/^\d+$/.test(e || "")) {
+        throw new Error(
+          `"^" needs a constant exponent like a^5, got "${e}" — a circuit's shape is fixed at compile time, so the row count cannot depend on a witness value`
+        );
+      }
       const n = parseInt(e, 10);
       if (n < 1) throw new Error("exponent must be >= 1");
       if (n > 64) throw new Error("exponent too large (max 64)");
