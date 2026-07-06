@@ -1402,3 +1402,35 @@ tr.code-hi-row td {
 .cell.sel-cell:hover {
   background: #1a2430;
 }
+
+/* ---------- sequential focus ---------- */
+
+.layout.focus-shape #paneTrace > *:not(.pane-title):not(.wake-note),
+.layout.focus-shape #paneCode > *:not(.pane-title):not(.pane-rail) {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.wake-note {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--panel-2);
+  border: 1px dashed var(--line-strong);
+  color: var(--dim);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.wake-note strong {
+  color: var(--selector);
+}
+
+.wake-note:hover {
+  border-color: var(--selector);
+  color: var(--text);
+}
+
+.layout.focus-shape #legend { display: none; }

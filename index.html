@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Halo2 Trace Inspector</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="./styles.css?v=10" />
+    <link rel="stylesheet" href="./styles.css?v=11" />
   </head>
   <body>
     <header class="topbar">
@@ -151,6 +151,7 @@
 
       <section id="paneTrace" class="pane">
         <h2 class="pane-title micro-label">trace — synthesize()</h2>
+        <button id="wakeTrace" class="wake-note" type="button" hidden>walk through the shape on the left first — or <strong>start the trace now ▸</strong></button>
 
         <div id="playerBar" class="player-bar">
           <button id="prevBtn" class="btn ghost" type="button" title="Previous step (←)">◀</button>
@@ -175,7 +176,7 @@
 
         <div id="legend" class="legend"></div>
 
-        <section class="side-section">
+        <section id="cellDetailSection" class="side-section" hidden>
           <h2 class="micro-label">selected cell</h2>
           <div id="cellDetail" class="cell-detail">click a cell in the trace</div>
         </section>
@@ -188,10 +189,10 @@
       </section>
     </main>
 
-    <script src="./eval.js?v=10"></script>
-    <script src="./examples.js?v=10"></script>
-    <script src="./builder.js?v=10"></script>
-    <script src="./codegen.js?v=10"></script>
-    <script src="./app.js?v=10"></script>
+    <script src="./eval.js?v=11"></script>
+    <script src="./examples.js?v=11"></script>
+    <script src="./builder.js?v=11"></script>
+    <script src="./codegen.js?v=11"></script>
+    <script src="./app.js?v=11"></script>
   </body>
 </html>

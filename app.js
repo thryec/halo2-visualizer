@@ -536,6 +536,7 @@ function clearSelection() {
   );
   document.querySelectorAll(".constraint.active").forEach((el) => el.classList.remove("active"));
   els.cellDetail.textContent = "click a cell in the trace";
+  document.getElementById("cellDetailSection").hidden = true;
   drawWires();
 }
 
@@ -544,6 +545,7 @@ function selectCell(key) {
   state.selection = { type: "cell", key };
   cellEl(key)?.classList.add("selected");
   renderCellDetail(key);
+  document.getElementById("cellDetailSection").hidden = false;
   drawWires();
 }
 
@@ -552,6 +554,7 @@ function selectPair(pair, kind, listEl) {
   state.selection = { type: "pair", pair, kind };
   pair.forEach((ref) => cellEl(ref)?.classList.add(kind === "public" ? "endpoint" : "selected"));
   if (listEl) listEl.classList.add("active");
+  document.getElementById("cellDetailSection").hidden = false;
   drawWires();
 }
 
@@ -571,6 +574,7 @@ function markPairFails() {
 
 // re-apply selection classes after the grid or side lists are rebuilt
 function restoreSelectionMarks() {
+  document.getElementById("cellDetailSection").hidden = !state.selection;
   const sel = state.selection;
   if (!sel) return;
   if (sel.type === "cell") {
@@ -964,12 +968,19 @@ function renderConfigure() {
 
   const next = document.getElementById("cfgNext");
   const firstClosed = sections.findIndex((_, i) => !open.has(i));
-  next.textContent = firstClosed === -1 ? "done ✓" : "next ▶";
-  next.disabled = firstClosed === -1;
-  next.onclick = () => {
-    if (firstClosed !== -1) open.add(firstClosed);
-    renderConfigure();
-  };
+  const focusShape = document.querySelector(".layout").classList.contains("focus-shape");
+  if (firstClosed === -1 && focusShape) {
+    next.textContent = "start the trace ▸";
+    next.disabled = false;
+    next.onclick = wakeTraceNow;
+  } else {
+    next.textContent = firstClosed === -1 ? "done ✓" : "next ▶";
+    next.disabled = firstClosed === -1;
+    next.onclick = () => {
+      if (firstClosed !== -1) open.add(firstClosed);
+      renderConfigure();
+    };
+  }
   document.getElementById("cfgAll").onclick = () => {
     if (open.size === sections.length) { open.clear(); open.add(0); }
     else sections.forEach((_, i) => open.add(i));
@@ -1042,6 +1053,13 @@ function clearCodeHighlight() {
 }
 
 /* ---------- render pipeline ---------- */
+
+function wakeTraceNow() {
+  document.querySelector(".layout").classList.remove("focus-shape");
+  document.getElementById("wakeTrace").hidden = true;
+  document.getElementById("paneTrace").scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+  drawWires();
+}
 
 function renderAll() {
   const { circuit } = state;
@@ -1164,6 +1182,8 @@ function loadCircuit(circuit) {
   state.step = 0; // trace builds up via the player
   state.configOpen = new Set([0]);
   els.cellDetail.textContent = "click a cell in the trace";
+  document.querySelector(".layout").classList.add("focus-shape");
+  document.getElementById("wakeTrace").hidden = false;
   setStatus("rendered ✓", "ok");
   renderAll();
   return true;
@@ -1622,6 +1642,7 @@ function init() {
 
   window.addEventListener("resize", drawWires);
   document.getElementById("shareBtn").addEventListener("click", shareCircuit);
+  document.getElementById("wakeTrace").addEventListener("click", wakeTraceNow);
 
   document.querySelector(".layout").classList.add("code-collapsed");
   document.querySelectorAll(".pane-toggle, .pane-rail").forEach((el) =>
