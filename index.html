@@ -33,6 +33,7 @@
           <span class="micro-label">values</span>
         </label>
 
+        <button id="shareBtn" class="btn ghost" type="button" title="Copy a link to this exact circuit">Share</button>
         <button id="buildToggle" class="btn ghost" type="button" aria-expanded="false">Build ⌄</button>
         <button id="jsonBtn" class="btn ghost" type="button" aria-expanded="false">JSON ⌄</button>
       </div>
@@ -113,17 +114,17 @@
         </section>
 
         <section class="side-section">
-          <h2 class="micro-label">lookups <span id="lookupCount"></span></h2>
+          <h2 class="micro-label" title="a lookup argument forces each input tuple to appear as a row of its table — no computation, just membership">lookups <span id="lookupCount"></span></h2>
           <div id="lookupsList"></div>
         </section>
 
         <details class="side-section">
-          <summary class="micro-label">copy constraints <span id="copyCount"></span></summary>
+          <summary class="micro-label" title="constrain_equal: the permutation argument forces both cells to hold the same value">copy constraints <span id="copyCount"></span></summary>
           <div id="copyList" class="constraint-list"></div>
         </details>
 
         <details class="side-section">
-          <summary class="micro-label">instance constraints <span id="instanceCount"></span></summary>
+          <summary class="micro-label" title="constrain_instance: pins a trace cell to a public input the verifier supplies">instance constraints <span id="instanceCount"></span></summary>
           <div id="instanceList" class="constraint-list"></div>
         </details>
       </aside>

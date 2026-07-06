@@ -53,6 +53,13 @@ const state = {
   selection: null // {type:"cell", key} | {type:"pair", pair:[a,b], kind:"copy"|"public"}
 };
 
+const GLOSSARY = {
+  advice: "Advice column: private cells the prover fills with witness values, fresh for every proof.",
+  selector: "Selector column: a fixed 0/1 switch baked into the circuit — 1 turns its gate on for that row.",
+  instance: "Instance column: public inputs. The verifier supplies these; the proof must be consistent with them.",
+  fixed: "Fixed column: constants baked into the circuit at key generation — identical for every proof."
+};
+
 /* ---------- helpers ---------- */
 
 function esc(s) {
@@ -255,7 +262,7 @@ function renderGrid() {
 
   const groupRow =
     `<tr class="group-row"><th></th>` +
-    groups.map((g) => `<th colspan="${g.count}" scope="colgroup" class="group-${g.type}">${g.type}</th>`).join("") +
+    groups.map((g) => `<th colspan="${g.count}" scope="colgroup" class="group-${g.type}" title="${esc(GLOSSARY[g.type] || "")}">${g.type}</th>`).join("") +
     `</tr>`;
 
   const nameRow =
@@ -798,7 +805,7 @@ function renderConfigure() {
   const witness = witnessVars(circuit);
 
   const strip = (name, type, opts = {}) => `
-    <div class="col-strip t-${type}${opts.borrowed ? " borrowed" : ""}">
+    <div class="col-strip t-${type}${opts.borrowed ? " borrowed" : ""}" title="${esc(GLOSSARY[type] || "")}">
       <span class="col-name">${esc(name)}</span>
       <span class="col-type">${opts.borrowed ? "borrowed advice" : type}</span>
       ${equality.has(name) ? `<span class="eq-badge">⇄ equality</span>` : ""}
@@ -1060,6 +1067,53 @@ function setStatus(text, cls) {
   els.parseStatus.className = "parse-status" + (cls ? " " + cls : "");
 }
 
+/* ---------- share links (circuit encoded in the URL hash) ---------- */
+
+function b64url(bytes) {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function unb64url(s) {
+  const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
+async function encodeShareHash(circuit) {
+  const bytes = new TextEncoder().encode(JSON.stringify(circuit));
+  if (typeof CompressionStream === "function") {
+    const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+    const buf = new Uint8Array(await new Response(stream).arrayBuffer());
+    return "c=" + b64url(buf);
+  }
+  return "u=" + b64url(bytes);
+}
+
+async function decodeShareHash(hash) {
+  const tag = hash.slice(0, 2);
+  const bytes = unb64url(hash.slice(2));
+  if (tag === "c=") {
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return JSON.parse(await new Response(stream).text());
+  }
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+async function shareCircuit() {
+  const btn = document.getElementById("shareBtn");
+  try {
+    location.hash = await encodeShareHash(state.circuit);
+    await navigator.clipboard.writeText(location.href);
+    btn.textContent = "copied ✓";
+  } catch {
+    btn.textContent = "link in URL bar";
+  }
+  setTimeout(() => (btn.textContent = "Share"), 1600);
+}
+
 /* ---------- events ---------- */
 
 function bindCellEvents() {
@@ -1195,8 +1249,22 @@ function init() {
   });
 
   window.addEventListener("resize", drawWires);
+  document.getElementById("shareBtn").addEventListener("click", shareCircuit);
 
-  loadExample(window.HALO2_EXAMPLES[0].id);
+  const hash = location.hash.slice(1);
+  if (hash.startsWith("c=") || hash.startsWith("u=")) {
+    decodeShareHash(hash)
+      .then((circuit) => {
+        els.jsonInput.value = JSON.stringify(circuit, null, 2);
+        if (!loadCircuit(circuit)) loadExample(window.HALO2_EXAMPLES[0].id);
+      })
+      .catch(() => {
+        setStatus("could not decode shared link — loading default example", "error");
+        loadExample(window.HALO2_EXAMPLES[0].id);
+      });
+  } else {
+    loadExample(window.HALO2_EXAMPLES[0].id);
+  }
 }
 
 init();
