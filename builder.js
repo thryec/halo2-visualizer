@@ -197,8 +197,8 @@ window.buildCircuit = function (statement, witnessStr) {
         name: "AddMulChip",
         columns: ["a", "b", "c"],
         gates: [
-          { name: "add gate", selector: "q_add", expression: "q_add · (a + b − c) = 0" },
-          { name: "mul gate", selector: "q_mul", expression: "q_mul · (a · b − c) = 0" }
+          { name: "add gate", selector: "q_add", constraints: ["a + b - c"] },
+          { name: "mul gate", selector: "q_mul", constraints: ["a * b - c"] }
         ]
       }
     ],

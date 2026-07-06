@@ -82,6 +82,7 @@
           <button id="endBtn" class="btn ghost" type="button" title="Show full trace">⏭</button>
           <span id="stepCounter" class="step-counter"></span>
           <span id="stepOp" class="step-op"></span>
+          <span id="checkBanner" class="check-banner"></span>
         </div>
 
         <div id="codePane" class="code-pane" role="tabpanel" aria-label="code" hidden></div>
@@ -94,6 +95,8 @@
         </div>
 
         <div id="configView" class="config-view" role="tabpanel" aria-label="configure" hidden></div>
+
+        <div id="tablesView" class="tables-view" hidden></div>
 
         <div id="legend" class="legend"></div>
       </section>
@@ -109,6 +112,11 @@
           <div id="chipsList"></div>
         </section>
 
+        <section class="side-section">
+          <h2 class="micro-label">lookups <span id="lookupCount"></span></h2>
+          <div id="lookupsList"></div>
+        </section>
+
         <details class="side-section">
           <summary class="micro-label">copy constraints <span id="copyCount"></span></summary>
           <div id="copyList" class="constraint-list"></div>
@@ -121,6 +129,7 @@
       </aside>
     </main>
 
+    <script src="./eval.js"></script>
     <script src="./examples.js"></script>
     <script src="./builder.js"></script>
     <script src="./codegen.js"></script>

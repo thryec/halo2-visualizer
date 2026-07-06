@@ -125,6 +125,52 @@ function validate(circuit) {
     pair.forEach((r) => checkRef(r, `instanceConstraints[${i}]`));
   });
 
+  // gate constraints + lookup inputs: must parse, only reference advice/fixed columns
+  const exprCols = new Set([...(circuit.columns.advice || []), ...(circuit.columns.fixed || [])]);
+  const checkExpr = (src, where) => {
+    try {
+      window.HALO2_EVAL.refsOf(window.HALO2_EVAL.parseExpr(src)).forEach((r) => {
+        if (!exprCols.has(r.col))
+          errors.push(`${where}: "${r.col}" is not an advice/fixed column (in "${src}")`);
+      });
+    } catch (e) {
+      errors.push(`${where}: ${e.message}`);
+    }
+  };
+
+  (circuit.chips || []).forEach((chip, ci) =>
+    (chip.gates || []).forEach((g, gi) => {
+      const where = `chips[${ci}].gates[${gi}] (${g.name || g.selector})`;
+      if (!selectorNames.has(g.selector)) errors.push(`${where}: unknown selector "${g.selector}"`);
+      if (!Array.isArray(g.constraints) || !g.constraints.length)
+        errors.push(`${where}: "constraints" must be a non-empty array of expressions`);
+      else g.constraints.forEach((c) => checkExpr(c, where));
+    })
+  );
+
+  const tableByName = new Map((circuit.tables || []).map((t) => [t.name, t]));
+  (circuit.tables || []).forEach((t, i) => {
+    if (!t.name || !Array.isArray(t.columns) || !Array.isArray(t.rows))
+      return void errors.push(`tables[${i}]: needs "name", "columns", "rows"`);
+    t.rows.forEach((r, ri) => {
+      if (!Array.isArray(r) || r.length !== t.columns.length)
+        errors.push(`tables[${i}] "${t.name}" row ${ri}: expected ${t.columns.length} values`);
+    });
+  });
+  (circuit.lookups || []).forEach((lk, i) => {
+    const where = `lookups[${i}] (${lk.name || "?"})`;
+    const table = tableByName.get(lk.table);
+    if (!table) errors.push(`${where}: unknown table "${lk.table}"`);
+    if (lk.selector && !selectorNames.has(lk.selector))
+      errors.push(`${where}: unknown selector "${lk.selector}"`);
+    (lk.inputs || []).forEach((c) => checkExpr(c, where));
+    const tcols = lk.tableColumns || table?.columns || [];
+    if (table && tcols.some((c) => !table.columns.includes(c)))
+      errors.push(`${where}: tableColumns must be columns of "${lk.table}"`);
+    if ((lk.inputs || []).length !== tcols.length)
+      errors.push(`${where}: inputs (${(lk.inputs || []).length}) and tableColumns (${tcols.length}) must match in length`);
+  });
+
   return errors;
 }
 
@@ -217,6 +263,11 @@ function renderGrid() {
     cols.map((c) => `<th scope="col" class="col-${c.type}" data-col="${esc(c.name)}">${esc(c.name)}</th>`).join("") +
     `</tr>`;
 
+  // consecutive rows with the same region name form one region block
+  const regionStart = circuit.rows.map(
+    (row, i) => i === 0 || row.region !== circuit.rows[i - 1].region
+  );
+
   const body = circuit.rows
     .map((row, idx) => {
       const cells = cols
@@ -244,16 +295,32 @@ function renderGrid() {
         })
         .join("");
 
+      // status column: aggregate gate/lookup checks for this row
+      const checks = state.check?.rows.get(row.id) || [];
+      const failed = checks.filter((c) => c.ok === false);
+      const pending = checks.filter((c) => c.ok === undefined);
+      let statusCls = "none", statusTxt = "";
+      if (failed.length) { statusCls = "fail"; statusTxt = "✗"; }
+      else if (checks.length && !pending.length) { statusCls = "ok"; statusTxt = "✓"; }
+      else if (checks.length) { statusCls = "pending"; statusTxt = "·"; }
+      const statusTitle = checks
+        .map((c) => `${c.ok === false ? "✗" : c.ok ? "✓" : "·"} ${c.name}${c.detail ? ": " + c.detail : ""}`)
+        .join("\n");
+
       return (
-        `<tr class="${gateClassForRow(row, d)}" data-row="${esc(row.id)}">` +
+        `<tr class="${gateClassForRow(row, d)}${regionStart[idx] ? " region-start" : ""}${failed.length ? " row-fail" : ""}" data-row="${esc(row.id)}">` +
         `<th scope="row" class="row-head"><span class="row-idx">${idx}</span>` +
-        `<span class="region">${esc(row.region || "")}</span>` +
-        `<span class="op">${esc(row.op || "")}</span></th>${cells}</tr>`
+        `<span class="region">${regionStart[idx] ? esc(row.region || "") : "″"}</span>` +
+        `<span class="op">${esc(row.op || "")}</span></th>${cells}` +
+        `<td class="cell status-cell s-${statusCls}" title="${esc(statusTitle)}">${statusTxt}</td></tr>`
       );
     })
     .join("");
 
-  els.grid.innerHTML = `<thead>${groupRow}${nameRow}</thead><tbody>${body}</tbody>`;
+  els.grid.innerHTML =
+    `<thead>${groupRow.replace("</tr>", `<th></th></tr>`)}` +
+    `${nameRow.replace("</tr>", `<th scope="col" class="status-head" title="gate + lookup checks">ok</th></tr>`)}</thead>` +
+    `<tbody>${body}</tbody>`;
 }
 
 /* ---------- step player ---------- */
@@ -500,10 +567,30 @@ function renderCellDetail(key) {
       <tr><td>column</td><td>${esc(col)} (${esc(d.colType.get(col) || "?")})</td></tr>
       <tr><td>region</td><td>${esc(row.region || "—")} · row ${d.rowIndex.get(rowId)}</td></tr>
       <tr><td>label</td><td>${esc(cell.label ?? "—")}</td></tr>
-      <tr><td>value</td><td>${cell.value !== undefined ? esc(cell.value) : "—"}</td></tr>
+      <tr><td>value</td><td>
+        <span class="value-edit">
+          <input id="valueEdit" type="text" inputmode="numeric" value="${cell.value !== undefined ? esc(cell.value) : ""}" placeholder="—" aria-label="cell value" />
+          <button id="valueApply" class="btn ghost" type="button" title="apply value and re-check constraints">set</button>
+        </span>
+      </td></tr>
       <tr><td>equal net</td><td>${netHtml}</td></tr>
       <tr><td>constraints</td><td>${constraints.length ? constraints.join("<br>") : "—"}</td></tr>
-    </table>`;
+    </table>
+    <p class="own-note">change the value and press set — every gate, lookup and copy re-checks, like MockProver.</p>`;
+
+  const apply = () => {
+    const raw = document.getElementById("valueEdit").value.trim();
+    if (raw !== "" && !/^-?\d+$/.test(raw)) return;
+    if (raw === "") delete cell.value;
+    else cell.value = raw;
+    els.jsonInput.value = JSON.stringify(circuit, null, 2);
+    state.check = window.HALO2_EVAL.checkCircuit(circuit, d);
+    renderAll();
+  };
+  document.getElementById("valueApply").addEventListener("click", apply);
+  document.getElementById("valueEdit").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") apply();
+  });
 }
 
 /* ---------- side panels ---------- */
@@ -513,22 +600,49 @@ function renderSidePanels() {
 
   els.chipsList.innerHTML = (circuit.chips || [])
     .map(
-      (chip) => `
+      (chip, ci) => `
       <div class="chip-card">
         <span class="chip-name">${esc(chip.name)}</span>
         <span class="chip-cols">[${(chip.columns || []).map(esc).join(", ")}]</span>
         ${(chip.gates || [])
           .map(
-            (g) =>
-              `<div class="gate-line"><span class="sel-tag">${esc(g.selector)}</span>${esc(g.expression)}</div>`
+            (g, gi) =>
+              `<div class="gate-line" data-gate="${ci}.${gi}"><span class="sel-tag">${esc(g.selector)}</span>` +
+              (g.constraints || [])
+                .map((c) => `<span class="gate-c">${esc(g.selector)} · (${esc(c)}) = 0</span>`)
+                .join("<br>") +
+              `</div>`
           )
           .join("")}
       </div>`
     )
     .join("") || `<div class="cell-detail">none</div>`;
+  bindGateHover();
+
+  const lookupsEl = document.getElementById("lookupsList");
+  document.getElementById("lookupCount").textContent = `(${(circuit.lookups || []).length})`;
+  lookupsEl.innerHTML = (circuit.lookups || [])
+    .map(
+      (lk, i) => `
+      <div class="chip-card lookup-card" data-lookup="${i}">
+        <span class="chip-name">${esc(lk.name || "lookup")}</span>
+        ${lk.selector ? `<span class="sel-tag">${esc(lk.selector)}</span>` : ""}
+        <div class="gate-line">(${(lk.inputs || []).map(esc).join(", ")}) ∈ ${esc(lk.table)}</div>
+      </div>`
+    )
+    .join("") || "none";
+  bindLookupHover();
 
   document.getElementById("copyCount").textContent = `(${(circuit.copyConstraints || []).length})`;
   document.getElementById("instanceCount").textContent = `(${(circuit.instanceConstraints || []).length})`;
+
+  const pairStatus = new Map(
+    (state.check?.pairs || []).map((p) => [p.kind + JSON.stringify(p.pair), p])
+  );
+  const failMark = (pair, kind) => {
+    const s = pairStatus.get(kind + JSON.stringify(pair));
+    return s?.ok === false ? ` <span class="pair-fail" title="${esc(s.detail)}">✗</span>` : "";
+  };
 
   els.copyList.innerHTML = "";
   (circuit.copyConstraints || []).forEach((pair) => {
@@ -539,7 +653,7 @@ function renderSidePanels() {
     btn.dataset.pair = JSON.stringify(pair);
     btn.innerHTML =
       `<span class="net-dot" style="background:${netColor(net ?? 0)}"></span>` +
-      `${esc(pair[0])} ↔ ${esc(pair[1])}`;
+      `${esc(pair[0])} ↔ ${esc(pair[1])}${failMark(pair, "copy")}`;
     btn.addEventListener("click", () => selectPair(pair, "copy", btn));
     els.copyList.appendChild(btn);
   });
@@ -552,11 +666,99 @@ function renderSidePanels() {
     btn.className = "constraint public-c";
     btn.dataset.pair = JSON.stringify(pair);
     btn.innerHTML = `<span class="net-dot" style="background:var(--instance)"></span>` +
-      `${esc(pair[0])} == ${esc(pair[1])}`;
+      `${esc(pair[0])} == ${esc(pair[1])}${failMark(pair, "public")}`;
     btn.addEventListener("click", () => selectPair(pair, "public", btn));
     els.instanceList.appendChild(btn);
   });
   if (!(circuit.instanceConstraints || []).length) els.instanceList.textContent = "none";
+}
+
+/* gate/lookup card hover -> highlight every cell the constraint reads */
+
+function highlightGateCells(gate) {
+  const { circuit } = state;
+  let refs = [];
+  try {
+    (gate.constraints || []).forEach((c) =>
+      refs.push(...window.HALO2_EVAL.refsOf(window.HALO2_EVAL.parseExpr(c)))
+    );
+  } catch { return; }
+  circuit.rows.forEach((row, i) => {
+    if (!row.selectors?.[gate.selector]) return;
+    refs.forEach((r) => {
+      const target = circuit.rows[i + r.rot];
+      if (target) cellEl(`${target.id}.${r.col}`)?.classList.add("code-hi");
+    });
+  });
+}
+
+function clearHoverHighlights() {
+  els.grid.querySelectorAll(".code-hi, .code-hi-row").forEach((el) =>
+    el.classList.remove("code-hi", "code-hi-row")
+  );
+  document.querySelectorAll(".table-block.hi, .table-row-hi").forEach((el) =>
+    el.classList.remove("hi", "table-row-hi")
+  );
+}
+
+function bindGateHover() {
+  document.querySelectorAll(".gate-line[data-gate]").forEach((el) => {
+    const [ci, gi] = el.dataset.gate.split(".").map(Number);
+    const gate = state.circuit.chips?.[ci]?.gates?.[gi];
+    if (!gate) return;
+    el.addEventListener("mouseenter", () => highlightGateCells(gate));
+    el.addEventListener("mouseleave", clearHoverHighlights);
+  });
+}
+
+function bindLookupHover() {
+  document.querySelectorAll(".lookup-card[data-lookup]").forEach((el) => {
+    const lk = state.circuit.lookups?.[Number(el.dataset.lookup)];
+    if (!lk) return;
+    el.addEventListener("mouseenter", () => {
+      highlightGateCells({ selector: lk.selector, constraints: lk.inputs });
+      document
+        .querySelector(`.table-block[data-table="${CSS.escape(lk.table)}"]`)
+        ?.classList.add("hi");
+    });
+    el.addEventListener("mouseleave", clearHoverHighlights);
+  });
+}
+
+/* ---------- lookup tables under the grid ---------- */
+
+function renderTables() {
+  const el = document.getElementById("tablesView");
+  const tables = state.circuit.tables || [];
+  if (!tables.length) {
+    el.innerHTML = "";
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  const CAP = 16;
+  el.innerHTML = tables
+    .map((t) => {
+      const shown = t.rows.slice(0, CAP);
+      return `
+      <div class="table-block" data-table="${esc(t.name)}">
+        <div class="table-head">lookup table · <strong>${esc(t.name)}</strong>
+          <span class="micro-label">loaded once in synthesize() via assign_table</span></div>
+        <table class="mini-table">
+          <thead><tr><th></th>${t.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead>
+          <tbody>
+            ${shown
+              .map(
+                (r, i) =>
+                  `<tr><td class="mini-idx">${i}</td>${r.map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`
+              )
+              .join("")}
+          </tbody>
+        </table>
+        ${t.rows.length > CAP ? `<div class="micro-label table-more">… ${t.rows.length - CAP} more rows</div>` : ""}
+      </div>`;
+    })
+    .join("");
 }
 
 function renderLegend() {
@@ -612,13 +814,22 @@ function renderConfigure() {
     .map((chip) => {
       const gates = (chip.gates || [])
         .map((g) => {
-          const n = (g.name || "").toLowerCase();
-          const cls = n.includes("add") ? "g-add" : n.includes("mul") ? "g-mul" : "g-other";
+          const cls = `g-${gateKind(g.name)}`;
+          const rots = new Set();
+          try {
+            (g.constraints || []).forEach((c) =>
+              window.HALO2_EVAL.refsOf(window.HALO2_EVAL.parseExpr(c)).forEach((r) => rots.add(r.rot))
+            );
+          } catch {}
+          const span = Math.max(...[...rots, 0]) - Math.min(...[...rots, 0]) + 1;
           return `
             <div class="gate-card ${cls}">
               <span class="gate-name">${esc(g.name || "gate")}</span>
               <span class="sel-tag">${esc(g.selector)}</span>
-              <span class="gate-expr">${esc(g.expression)}</span>
+              ${span > 1 ? `<span class="rot-badge" title="reads ${span} consecutive rows via rotations">↕ ${span} rows</span>` : ""}
+              ${(g.constraints || [])
+                .map((c) => `<div class="gate-expr">${esc(g.selector)} · (${esc(c)}) = 0</div>`)
+                .join("")}
             </div>`;
         })
         .join("");
@@ -663,7 +874,28 @@ function renderConfigure() {
         }</p>
       </div>
     </div>
-    ${chipBoxes}`;
+    ${chipBoxes}
+    ${
+      (circuit.lookups || []).length
+        ? `
+    <div class="own-box t-chip" style="margin-top:14px">
+      <div class="own-head">lookup arguments — declared in configure(), tables filled in synthesize()</div>
+      <div class="own-body">
+        ${(circuit.lookups || [])
+          .map(
+            (lk) =>
+              `<div class="gate-card g-other">
+                <span class="gate-name">${esc(lk.name || "lookup")}</span>
+                ${lk.selector ? `<span class="sel-tag">${esc(lk.selector)}</span>` : ""}
+                <span class="gate-expr">(${(lk.inputs || []).map(esc).join(", ")}) must appear in table ${esc(lk.table)}</span>
+              </div>`
+          )
+          .join("")}
+        <p class="own-note">a lookup does not compute anything — it only forces each input tuple to equal some row of the table.</p>
+      </div>
+    </div>`
+        : ""
+    }`;
 }
 
 /* ---------- code view ---------- */
@@ -760,6 +992,9 @@ function renderAll() {
       renderCode();
     }
   }
+  document.getElementById("tablesView").hidden = view === "configure";
+  if (view !== "configure") renderTables();
+  renderCheckBanner();
   renderSidePanels();
   renderLegend();
   restoreSelectionMarks();
@@ -774,12 +1009,39 @@ function loadCircuit(circuit) {
   stopPlay();
   state.circuit = circuit;
   state.derived = derive(circuit);
+  state.check = window.HALO2_EVAL.checkCircuit(circuit, state.derived);
   state.selection = null;
   state.step = 0; // trace builds up via the player
   els.cellDetail.textContent = "click a cell in the trace";
   setStatus("rendered ✓", "ok");
   renderAll();
   return true;
+}
+
+function renderCheckBanner() {
+  const el = document.getElementById("checkBanner");
+  const c = state.check;
+  if (!c || !c.checked) {
+    el.textContent = "";
+    el.className = "check-banner";
+    return;
+  }
+  const pairFails = c.pairs.filter((p) => p.ok === false).length;
+  if (c.failures) {
+    el.textContent = `✗ ${c.failures} constraint${c.failures > 1 ? "s" : ""} failing`;
+    el.className = "check-banner fail";
+    el.title = c.pairs
+      .filter((p) => p.ok === false)
+      .map((p) => `✗ ${p.pair[0]} ↔ ${p.pair[1]}: ${p.detail}`)
+      .join("\n") || "see ✗ rows in the trace";
+  } else {
+    el.textContent = c.incomplete
+      ? `✓ ${c.checked} checked · ${c.incomplete} skipped (missing values)`
+      : `✓ all ${c.checked} constraints satisfied`;
+    el.className = "check-banner ok";
+    el.title = "gates, lookups, copies and instance pins — checked like MockProver";
+  }
+  void pairFails;
 }
 
 function showErrors(errors) {
