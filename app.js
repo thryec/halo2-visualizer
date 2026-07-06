@@ -20,7 +20,6 @@ const els = {
   parseStatus: document.getElementById("parseStatus"),
   valuesToggle: document.getElementById("valuesToggle"),
   practiceToggle: document.getElementById("practiceToggle"),
-  tabs: [...document.querySelectorAll(".tab")],
   title: document.getElementById("circuitTitle"),
   subtitle: document.getElementById("circuitSubtitle"),
   viewCaption: document.getElementById("viewCaption"),
@@ -39,16 +38,14 @@ const els = {
   codePane: document.getElementById("codePane"),
   legend: document.getElementById("legend"),
   cellDetail: document.getElementById("cellDetail"),
-  chipsList: document.getElementById("chipsList"),
   copyList: document.getElementById("copyList"),
   instanceList: document.getElementById("instanceList"),
-  stage: document.querySelector(".stage")
+  pageHead: document.querySelector(".page-head")
 };
 
 const state = {
   circuit: null,
   derived: null,
-  view: "synthesize",
   step: 0,
   configOpen: null,
   playing: false,
@@ -446,14 +443,13 @@ function activeWires() {
     return [...copies, ...publics];
   }
 
-  if (state.view === "synthesize") return stepPairs();
-  return [];
+  return stepPairs();
 }
 
 function drawWires() {
   const svg = els.wireLayer;
   svg.innerHTML = "";
-  if (state.view !== "synthesize") return;
+  if (!state.circuit) return;
 
   const wires = activeWires();
   if (!wires.length) return;
@@ -665,45 +661,6 @@ function renderCellDetail(key) {
 function renderSidePanels() {
   const { circuit, derived: d } = state;
 
-  const inlineCard = (circuit.gates || []).length
-    ? `
-      <div class="chip-card">
-        <span class="chip-name">circuit</span>
-        <span class="chip-cols">inline gates — no chip</span>
-        ${(circuit.gates || [])
-          .map(
-            (g, gi) =>
-              `<div class="gate-line" data-gate="inline.${gi}"><span class="sel-tag">${esc(g.selector)}</span>` +
-              (g.constraints || [])
-                .map((c) => `<span class="gate-c">${esc(g.selector)} · (${esc(c)}) = 0</span>`)
-                .join("<br>") +
-              `</div>`
-          )
-          .join("")}
-      </div>`
-    : "";
-
-  els.chipsList.innerHTML = (inlineCard + (circuit.chips || [])
-    .map(
-      (chip, ci) => `
-      <div class="chip-card">
-        <span class="chip-name">${esc(chip.name)}</span>
-        <span class="chip-cols">[${(chip.columns || []).map(esc).join(", ")}]</span>
-        ${(chip.gates || [])
-          .map(
-            (g, gi) =>
-              `<div class="gate-line" data-gate="${ci}.${gi}"><span class="sel-tag">${esc(g.selector)}</span>` +
-              (g.constraints || [])
-                .map((c) => `<span class="gate-c">${esc(g.selector)} · (${esc(c)}) = 0</span>`)
-                .join("<br>") +
-              `</div>`
-          )
-          .join("")}
-      </div>`
-    )
-    .join("")) || `<div class="cell-detail">none</div>`;
-  bindGateHover();
-
   const lookupsEl = document.getElementById("lookupsList");
   document.getElementById("lookupCount").textContent = `(${(circuit.lookups || []).length})`;
   lookupsEl.innerHTML = (circuit.lookups || [])
@@ -785,18 +742,6 @@ function clearHoverHighlights() {
   document.querySelectorAll(".table-block.hi, .table-row-hi").forEach((el) =>
     el.classList.remove("hi", "table-row-hi")
   );
-}
-
-function bindGateHover() {
-  document.querySelectorAll(".gate-line[data-gate]").forEach((el) => {
-    const [ci, gi] = el.dataset.gate.split(".");
-    const gate = ci === "inline"
-      ? state.circuit.gates?.[Number(gi)]
-      : state.circuit.chips?.[Number(ci)]?.gates?.[Number(gi)];
-    if (!gate) return;
-    el.addEventListener("mouseenter", () => highlightGateCells(gate));
-    el.addEventListener("mouseleave", clearHoverHighlights);
-  });
 }
 
 function bindLookupHover() {
@@ -1104,34 +1049,18 @@ function renderAll() {
   els.subtitle.textContent = circuit.subtitle || "";
   els.viewCaption.hidden = true;
 
-  const view = state.view;
-  els.playerBar.style.display = view === "synthesize" ? "" : "none";
-  els.gridScroll.style.display = view === "configure" ? "none" : "";
-  els.legend.style.display = view === "synthesize" ? "" : "none";
-  document.querySelector(".side").hidden = view === "configure";
-  els.configView.hidden = view !== "configure";
-  els.codePane.hidden = view !== "code";
-  els.stage.classList.toggle("view-code", view === "code");
-
   document.querySelector(".render-error")?.remove();
 
-  if (view === "configure") {
-    renderConfigure();
-  } else {
-    renderGrid();
-    bindCellEvents();
-    if (view === "synthesize") applyStep();
-    else {
-      drawWires(); // clears overlay; full trace shown, no step classes
-      renderCode();
-    }
-  }
-  document.getElementById("tablesView").hidden = view === "configure";
-  if (view !== "configure") renderTables();
+  renderConfigure();
+  renderGrid();
+  bindCellEvents();
+  applyStep();
+  renderTables();
+  renderCode();
   renderCheckBanner();
   renderSidePanels();
   renderLegend();
-  if (view !== "configure") markPairFails();
+  markPairFails();
   restoreSelectionMarks();
 }
 
@@ -1234,12 +1163,6 @@ function loadCircuit(circuit) {
   state.selection = null;
   state.step = 0; // trace builds up via the player
   state.configOpen = new Set([0]);
-  // open on configure — same order you write a circuit: shape first, then synthesize
-  state.view = "configure";
-  els.tabs.forEach((t) => {
-    t.classList.toggle("active", t.dataset.view === "configure");
-    t.setAttribute("aria-selected", String(t.dataset.view === "configure"));
-  });
   els.cellDetail.textContent = "click a cell in the trace";
   setStatus("rendered ✓", "ok");
   renderAll();
@@ -1303,7 +1226,7 @@ function showErrors(errors) {
   const box = document.createElement("div");
   box.className = "render-error";
   box.textContent = "circuit JSON invalid:\n" + msg;
-  els.stage.insertBefore(box, els.viewCaption);
+  els.pageHead.appendChild(box);
 }
 
 function setStatus(text, cls) {
@@ -1617,31 +1540,6 @@ function init() {
     else exitPractice();
   });
 
-  const TAB_TIPS = {
-    configure: "the circuit's shape — walk it step by step",
-    synthesize: "the filled trace — ▶ plays it row by row, click cells to inspect",
-    code: "generated Rust, hover-synced with the trace"
-  };
-  els.tabs.forEach((tab, i) => {
-    tab.title = TAB_TIPS[tab.dataset.view] || "";
-    tab.addEventListener("click", () => {
-      state.view = tab.dataset.view;
-      els.tabs.forEach((t) => {
-        t.classList.toggle("active", t === tab);
-        t.setAttribute("aria-selected", String(t === tab));
-      });
-      stopPlay();
-      renderAll();
-    });
-    tab.addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      e.stopPropagation();
-      const next = els.tabs[(i + (e.key === "ArrowRight" ? 1 : els.tabs.length - 1)) % els.tabs.length];
-      next.focus();
-      next.click();
-    });
-  });
-
   els.prevBtn.addEventListener("click", () => setStep(state.step - 1));
   els.nextBtn.addEventListener("click", () => setStep(state.step + 1));
   els.endBtn.addEventListener("click", () => {
@@ -1716,7 +1614,7 @@ function init() {
         return;
       }
     }
-    if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || state.view !== "synthesize") return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
     if (e.key === "ArrowLeft") setStep(state.step - 1);
     else if (e.key === "ArrowRight") setStep(state.step + 1);
     else if (e.key === "Escape") clearSelection();
