@@ -356,16 +356,31 @@ body.no-circuit .layout {
 
 .layout {
   display: grid;
-  grid-template-columns: 30fr 38fr 32fr;
+  grid-template-columns: var(--shape-w, 30fr) 6px 38fr 32fr;
   gap: 0;
   align-items: start;
   max-width: 1800px;
   margin: 0 auto;
 }
 
-.layout.code-collapsed { grid-template-columns: 30fr 66fr 42px; }
-.layout.shape-collapsed { grid-template-columns: 42px 62fr 34fr; }
-.layout.shape-collapsed.code-collapsed { grid-template-columns: 42px 1fr 42px; }
+.layout.code-collapsed { grid-template-columns: var(--shape-w, 30fr) 6px 66fr 42px; }
+.layout.shape-collapsed { grid-template-columns: 42px 0 62fr 34fr; }
+.layout.shape-collapsed.code-collapsed { grid-template-columns: 42px 0 1fr 42px; }
+
+.pane-resizer {
+  cursor: col-resize;
+  border-left: 1px solid var(--line);
+}
+
+.pane-resizer:hover,
+.pane-resizer.dragging {
+  border-left: 2px solid var(--advice);
+}
+
+.layout.shape-collapsed .pane-resizer {
+  display: none;
+  pointer-events: none;
+}
 
 .pane-rail { display: none; }
 .layout.shape-collapsed #paneShape > :not(.pane-rail),
@@ -1348,6 +1363,7 @@ tr.code-hi-row td {
   }
 
   .layout.shape-collapsed, .layout.code-collapsed, .layout.shape-collapsed.code-collapsed { grid-template-columns: 1fr; }
+  .pane-resizer { display: none; }
   .pane-rail { display: none !important; }
   .layout.shape-collapsed #paneShape > :not(.pane-rail),
   .layout.code-collapsed #paneCode > :not(.pane-rail) { display: revert; }

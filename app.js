@@ -850,8 +850,7 @@ function renderConfigure() {
           witness.length
             ? witness.map((w) => `<code class="own-field">${esc(w.name)}: Value&lt;F&gt;</code>`).join(" ")
             : `<span class="own-note">no unconstrained loads — witness assigned directly in regions</span>`
-        }
-        <p class="own-note">secret values only — structure lives in the boxes below.</p>`;
+        }`;
 
   const gateCardsHtml = (gates) =>
     (gates || [])
@@ -878,13 +877,11 @@ function renderConfigure() {
 
   const circuitBody = `
         <span class="micro-label">creates all columns — advice at circuit level so chips can share</span>
-        <div class="col-strips">${circuitStrips}</div>
-        <p class="own-note">⇄ equality = column may appear in copy constraints.</p>${
+        <div class="col-strips">${circuitStrips}</div>${
           (circuit.gates || []).length
             ? `
         <span class="micro-label">owns · gates — declared inline, no chip</span>
-        ${gateCardsHtml(circuit.gates)}
-        <p class="own-note">inline gates = one-off logic. Move gates into a chip when several circuits would reuse them.</p>`
+        ${gateCardsHtml(circuit.gates)}`
             : ""
         }`;
 
@@ -899,9 +896,8 @@ function renderConfigure() {
       title: "your statement, broken into steps",
       kind: "witness",
       html: `
-        <p class="own-note">a proof system can only check one + or one · per row, so <code>${esc(circuit.generatedFrom)}</code> becomes:</p>
-        ${steps}
-        <p class="own-note">each line is one row of the table. Both kinds of step come from one reusable gadget — <strong>AddMulChip</strong> — which is why a chip appears in the steps below.</p>`
+        <p class="own-note"><code>${esc(circuit.generatedFrom)}</code></p>
+        ${steps}`
     });
   }
 
@@ -943,8 +939,7 @@ function renderConfigure() {
                 <span class="gate-expr">(${(lk.inputs || []).map(esc).join(", ")}) must appear in table ${esc(lk.table)}</span>
               </div>`
           )
-          .join("")}
-        <p class="own-note">forces each input tuple to equal some table row — no computation.</p>`
+          .join("")}`
     });
   }
 
@@ -1642,6 +1637,31 @@ function init() {
 
   window.addEventListener("resize", drawWires);
   document.getElementById("shareBtn").addEventListener("click", shareCircuit);
+
+  const resizer = document.getElementById("paneResizer");
+  const layoutEl = document.querySelector(".layout");
+  resizer.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    resizer.setPointerCapture(e.pointerId);
+    resizer.classList.add("dragging");
+    const left = layoutEl.getBoundingClientRect().left;
+    const onMove = (ev) => {
+      const w = Math.max(260, Math.min(760, ev.clientX - left));
+      layoutEl.style.setProperty("--shape-w", w + "px");
+    };
+    const onUp = () => {
+      resizer.classList.remove("dragging");
+      resizer.removeEventListener("pointermove", onMove);
+      resizer.removeEventListener("pointerup", onUp);
+      drawWires();
+    };
+    resizer.addEventListener("pointermove", onMove);
+    resizer.addEventListener("pointerup", onUp);
+  });
+  resizer.addEventListener("dblclick", () => {
+    layoutEl.style.removeProperty("--shape-w");
+    drawWires();
+  });
   document.getElementById("wakeTrace").addEventListener("click", wakeTraceNow);
 
   document.querySelector(".layout").classList.add("code-collapsed");
