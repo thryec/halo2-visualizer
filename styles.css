@@ -364,6 +364,19 @@ body.no-circuit .layout {
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 0;
   align-items: start;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1840px) {
+  .layout {
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+  }
+
+  .layout .side {
+    min-width: 340px;
+  }
 }
 
 .stage {
@@ -433,7 +446,8 @@ body.no-circuit .layout {
 
 .trace-grid {
   border-collapse: collapse;
-  width: 100%;
+  width: auto;
+  min-width: min(100%, 720px);
 }
 
 .trace-grid th,
@@ -961,7 +975,7 @@ tr.code-hi-row td {
 }
 
 .own-box.t-witness { border-top-color: var(--advice); }
-.own-box.t-circuit { border-top-color: var(--instance); margin-top: 14px; }
+.own-box.t-circuit { border-top-color: var(--instance); }
 .own-box.t-chip { border-top-color: var(--selector); }
 
 .own-head {
@@ -1001,13 +1015,34 @@ tr.code-hi-row td {
   max-width: 70ch;
 }
 
-.own-pass {
-  margin: 0 0 0 26px;
-  padding: 6px 0 6px 14px;
-  border-left: 1px dashed var(--line-strong);
-  color: var(--selector);
-  font-size: 11px;
-  letter-spacing: 0.06em;
+.config-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.own-box.own-collapsed {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0.55;
+  padding: 0;
+  margin-top: 8px;
+}
+
+.own-box.own-collapsed:hover {
+  opacity: 1;
+  border-color: var(--line-strong);
+}
+
+.own-box.own-collapsed .own-head {
+  border-bottom: none;
+}
+
+.own-box + .own-box {
+  margin-top: 8px;
 }
 
 .own-owned {

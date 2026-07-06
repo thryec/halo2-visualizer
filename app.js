@@ -50,6 +50,7 @@ const state = {
   derived: null,
   view: "synthesize",
   step: 0,
+  configStep: 0,
   playing: false,
   timer: null,
   practice: false,
@@ -864,19 +865,39 @@ function renderConfigure() {
     ...(circuit.columns?.instance || []).map((n) => strip(n, "instance"))
   ].join("");
 
-  const chipBoxes = chips
-    .map((chip) => {
-      const gates = (chip.gates || [])
-        .map((g) => {
-          const cls = `g-${gateKind(g.name)}`;
-          const rots = new Set();
-          try {
-            (g.constraints || []).forEach((c) =>
-              window.HALO2_EVAL.refsOf(window.HALO2_EVAL.parseExpr(c)).forEach((r) => rots.add(r.rot))
-            );
-          } catch {}
-          const span = Math.max(...[...rots, 0]) - Math.min(...[...rots, 0]) + 1;
-          return `
+  const witnessBody = `
+        ${
+          witness.length
+            ? witness.map((w) => `<code class="own-field">${esc(w.name)}: Value&lt;F&gt;</code>`).join(" ")
+            : `<span class="own-note">no unconstrained loads — witness assigned directly in regions</span>`
+        }
+        <p class="own-note">secret values only. No columns, no gates, no structure — those live below.</p>`;
+
+  const circuitBody = `
+        <span class="micro-label">creates every column once — advice at circuit level so chips can share</span>
+        <div class="col-strips">${circuitStrips}</div>
+        <p class="own-note">enable_equality(col) marks a column usable in copy constraints${
+          chipColNames.size ? "; advice columns are then handed to the chip:" : "."
+        }</p>`;
+
+  const sections = [
+    { title: "MyCircuit — the prover's witness", kind: "witness", html: witnessBody },
+    { title: "Circuit::configure() → CircuitConfig", kind: "circuit", html: circuitBody }
+  ];
+
+  chips.forEach((chip) => {
+    const cols = (chip.columns || []).map(esc).join(", ");
+    const gates = (chip.gates || [])
+      .map((g) => {
+        const cls = `g-${gateKind(g.name)}`;
+        const rots = new Set();
+        try {
+          (g.constraints || []).forEach((c) =>
+            window.HALO2_EVAL.refsOf(window.HALO2_EVAL.parseExpr(c)).forEach((r) => rots.add(r.rot))
+          );
+        } catch {}
+        const span = Math.max(...[...rots, 0]) - Math.min(...[...rots, 0]) + 1;
+        return `
             <div class="gate-card ${cls}">
               <span class="gate-name">${esc(g.name || "gate")}</span>
               <span class="sel-tag">${esc(g.selector)}</span>
@@ -885,56 +906,30 @@ function renderConfigure() {
                 .map((c) => `<div class="gate-expr">${esc(g.selector)} · (${esc(c)}) = 0</div>`)
                 .join("")}
             </div>`;
-        })
-        .join("");
-      const owned = (chip.gates || [])
-        .map((g) => `<span class="sel-tag">${esc(g.selector)} = meta.selector()</span>`)
-        .join(" ");
-      return `
-      <div class="own-pass">passes ${(chip.columns || []).map(esc).join(", ")} ↓</div>
-      <div class="own-box t-chip">
-        <div class="own-head">${esc(chip.name)}::configure(${(chip.columns || []).map(esc).join(", ")}) → ${esc(chip.name)}Config</div>
-        <div class="own-body">
-          <span class="micro-label">borrows — created by the circuit, used by the chip</span>
+      })
+      .join("");
+    const owned = (chip.gates || [])
+      .map((g) => `<span class="sel-tag">${esc(g.selector)} = meta.selector()</span>`)
+      .join(" ");
+    sections.push({
+      title: `${esc(chip.name)}::configure(${cols}) → ${esc(chip.name)}Config`,
+      kind: "chip",
+      html: `
+        <p class="own-note">receives ${cols} from the circuit — borrowed, not created.</p>
+        <span class="micro-label">borrows — created by the circuit, used by the chip</span>
           <div class="col-strips">${(chip.columns || []).map((n) => strip(n, "advice", { borrowed: true })).join("")}</div>
           <span class="micro-label">owns — selectors the chip creates itself</span>
           <div class="own-owned">${owned || "—"}</div>
           <span class="micro-label">owns — gates (polynomial identities)</span>
-          ${gates}
-        </div>
-      </div>`;
-    })
-    .join("");
+          ${gates}`
+    });
+  });
 
-  els.configView.innerHTML = `
-    <div class="own-box t-witness">
-      <div class="own-head">MyCircuit — the prover's witness</div>
-      <div class="own-body">
-        ${
-          witness.length
-            ? witness.map((w) => `<code class="own-field">${esc(w.name)}: Value&lt;F&gt;</code>`).join(" ")
-            : `<span class="own-note">no unconstrained loads — witness assigned directly in regions</span>`
-        }
-        <p class="own-note">secret values only. No columns, no gates, no structure — those live below.</p>
-      </div>
-    </div>
-    <div class="own-box t-circuit">
-      <div class="own-head">Circuit::configure() → CircuitConfig</div>
-      <div class="own-body">
-        <span class="micro-label">creates every column once — advice at circuit level so chips can share</span>
-        <div class="col-strips">${circuitStrips}</div>
-        <p class="own-note">enable_equality(col) marks a column usable in copy constraints${
-          chipColNames.size ? "; advice columns are then handed to the chip:" : "."
-        }</p>
-      </div>
-    </div>
-    ${chipBoxes}
-    ${
-      (circuit.lookups || []).length
-        ? `
-    <div class="own-box t-chip" style="margin-top:14px">
-      <div class="own-head">lookup arguments — declared in configure(), tables filled in synthesize()</div>
-      <div class="own-body">
+  if ((circuit.lookups || []).length) {
+    sections.push({
+      title: "lookup arguments + tables",
+      kind: "chip",
+      html: `
         ${(circuit.lookups || [])
           .map(
             (lk) =>
@@ -945,11 +940,46 @@ function renderConfigure() {
               </div>`
           )
           .join("")}
-        <p class="own-note">a lookup does not compute anything — it only forces each input tuple to equal some row of the table.</p>
-      </div>
-    </div>`
-        : ""
-    }`;
+        <p class="own-note">a lookup does not compute anything — it only forces each input tuple to equal some row of the table.</p>`
+    });
+  }
+
+  state.configStep = Math.max(0, Math.min(state.configStep, sections.length - 1));
+
+  els.configView.innerHTML = `
+    <div class="config-nav">
+      <button id="cfgPrev" class="btn ghost" type="button">◀</button>
+      <button id="cfgNext" class="btn" type="button">next ▶</button>
+      <span class="step-counter">step ${state.configStep + 1}/${sections.length}</span>
+    </div>
+    ${sections
+      .map((s, i) =>
+        i === state.configStep
+          ? `<div class="own-box t-${s.kind} open"><div class="own-head">${i + 1} · ${s.title}</div><div class="own-body">${s.html}</div></div>`
+          : `<button type="button" class="own-box own-collapsed t-${s.kind}" data-cfg="${i}"><div class="own-head">${i + 1} · ${s.title}</div></button>`
+      )
+      .join("")}`;
+
+  const prev = document.getElementById("cfgPrev");
+  const next = document.getElementById("cfgNext");
+  prev.disabled = state.configStep === 0;
+  const last = state.configStep === sections.length - 1;
+  next.textContent = last ? "done ✓" : "next ▶";
+  next.disabled = last;
+  prev.onclick = () => {
+    state.configStep = Math.max(0, state.configStep - 1);
+    renderConfigure();
+  };
+  next.onclick = () => {
+    state.configStep = Math.min(sections.length - 1, state.configStep + 1);
+    renderConfigure();
+  };
+  els.configView.querySelectorAll("[data-cfg]").forEach((el) => {
+    el.onclick = () => {
+      state.configStep = Number(el.dataset.cfg);
+      renderConfigure();
+    };
+  });
 }
 
 /* ---------- code view ---------- */
@@ -1153,6 +1183,7 @@ function loadCircuit(circuit) {
   state.check = window.HALO2_EVAL.checkCircuit(circuit, state.derived);
   state.selection = null;
   state.step = 0; // trace builds up via the player
+  state.configStep = 0;
   // open on configure — same order you write a circuit: shape first, then synthesize
   state.view = "configure";
   els.tabs.forEach((t) => {
