@@ -368,6 +368,10 @@ body.no-circuit .layout {
   margin: 0 auto;
 }
 
+.layout:has(.side[hidden]) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 @media (min-width: 1840px) {
   .layout {
     border-left: 1px solid var(--line);
@@ -1165,6 +1169,8 @@ tr.code-hi-row td {
   padding: 14px;
   min-height: calc(100vh - 46px);
 }
+
+.side[hidden] { display: none; }
 
 .side-section {
   margin-bottom: 20px;

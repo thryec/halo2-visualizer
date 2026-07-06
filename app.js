@@ -624,8 +624,7 @@ function renderCellDetail(key) {
       </td></tr>
       <tr><td>equal net</td><td>${netHtml}</td></tr>
       <tr><td>constraints</td><td>${constraints.length ? constraints.join("<br>") : "—"}</td></tr>
-    </table>
-    <p class="own-note">change the value and press set — every gate, lookup and copy re-checks, like MockProver.</p>`;
+    </table>`;
 
   const apply = () => {
     const raw = document.getElementById("valueEdit").value.trim();
@@ -686,6 +685,7 @@ function renderSidePanels() {
       </div>`
     )
     .join("") || "none";
+  document.getElementById("lookupsList").closest(".side-section").hidden = !(circuit.lookups || []).length;
   bindLookupHover();
 
   document.getElementById("copyCount").textContent = `(${(circuit.copyConstraints || []).length})`;
@@ -849,7 +849,6 @@ function renderConfigure() {
   const { circuit } = state;
   const equality = new Set(circuit.equality || []);
   const chips = circuit.chips || [];
-  const chipColNames = new Set(chips.flatMap((c) => c.columns || []));
   const witness = witnessVars(circuit);
 
   const strip = (name, type, opts = {}) => `
@@ -871,14 +870,12 @@ function renderConfigure() {
             ? witness.map((w) => `<code class="own-field">${esc(w.name)}: Value&lt;F&gt;</code>`).join(" ")
             : `<span class="own-note">no unconstrained loads — witness assigned directly in regions</span>`
         }
-        <p class="own-note">secret values only. No columns, no gates, no structure — those live below.</p>`;
+        <p class="own-note">secret values only — structure lives in the boxes below.</p>`;
 
   const circuitBody = `
-        <span class="micro-label">creates every column once — advice at circuit level so chips can share</span>
+        <span class="micro-label">creates all columns — advice at circuit level so chips can share</span>
         <div class="col-strips">${circuitStrips}</div>
-        <p class="own-note">enable_equality(col) marks a column usable in copy constraints${
-          chipColNames.size ? "; advice columns are then handed to the chip:" : "."
-        }</p>`;
+        <p class="own-note">⇄ equality = column may appear in copy constraints.</p>`;
 
   const sections = [
     { title: "MyCircuit — the prover's witness", kind: "witness", html: witnessBody },
@@ -915,12 +912,11 @@ function renderConfigure() {
       title: `${esc(chip.name)}::configure(${cols}) → ${esc(chip.name)}Config`,
       kind: "chip",
       html: `
-        <p class="own-note">receives ${cols} from the circuit — borrowed, not created.</p>
-        <span class="micro-label">borrows — created by the circuit, used by the chip</span>
+        <span class="micro-label">borrows</span>
           <div class="col-strips">${(chip.columns || []).map((n) => strip(n, "advice", { borrowed: true })).join("")}</div>
-          <span class="micro-label">owns — selectors the chip creates itself</span>
+          <span class="micro-label">owns · selectors</span>
           <div class="own-owned">${owned || "—"}</div>
-          <span class="micro-label">owns — gates (polynomial identities)</span>
+          <span class="micro-label">owns · gates</span>
           ${gates}`
     });
   });
@@ -940,7 +936,7 @@ function renderConfigure() {
               </div>`
           )
           .join("")}
-        <p class="own-note">a lookup does not compute anything — it only forces each input tuple to equal some row of the table.</p>`
+        <p class="own-note">forces each input tuple to equal some table row — no computation.</p>`
     });
   }
 
@@ -952,7 +948,7 @@ function renderConfigure() {
     <div class="config-nav">
       <button id="cfgNext" class="btn" type="button">next ▶</button>
       <button id="cfgAll" class="btn ghost" type="button">${open.size === sections.length ? "collapse all" : "open all"}</button>
-      <span class="step-counter">${open.size}/${sections.length} open — click any header to toggle</span>
+      <span class="step-counter">${open.size}/${sections.length}</span>
     </div>
     ${sections
       .map((s, i) =>
@@ -1043,25 +1039,17 @@ function clearCodeHighlight() {
 
 /* ---------- render pipeline ---------- */
 
-const CAPTIONS = {
-  synthesize:
-    "press ▶ play to watch synthesize() fill the trace (⏭ shows it all) — click any cell to see where its value is pinned equal",
-  configure:
-    "who owns what: MyCircuit holds secrets, the circuit creates columns, chips borrow columns and own their selectors + gates",
-  code:
-    "homework-style Rust generated from this circuit — hover a line to light up what it creates or fills in the trace"
-};
-
 function renderAll() {
   const { circuit } = state;
   els.title.textContent = circuit.title || "untitled circuit";
   els.subtitle.textContent = circuit.subtitle || "";
-  els.viewCaption.textContent = CAPTIONS[state.view];
+  els.viewCaption.hidden = true;
 
   const view = state.view;
   els.playerBar.style.display = view === "synthesize" ? "" : "none";
   els.gridScroll.style.display = view === "configure" ? "none" : "";
   els.legend.style.display = view === "synthesize" ? "" : "none";
+  document.querySelector(".side").hidden = view === "configure";
   els.configView.hidden = view !== "configure";
   els.codePane.hidden = view !== "code";
   els.stage.classList.toggle("view-code", view === "code");
@@ -1213,7 +1201,7 @@ function renderCheckBanner() {
       const cell = cellAt(key);
       if (!cell || cell.value === undefined) left++;
     });
-    el.textContent = `practice: ${left} cells left — fill them via a cell's set field`;
+    el.textContent = `practice: ${left} cells left`;
     el.className = "check-banner";
     return;
   }
@@ -1440,7 +1428,13 @@ function init() {
     else exitPractice();
   });
 
+  const TAB_TIPS = {
+    configure: "the circuit's shape — walk it step by step",
+    synthesize: "the filled trace — ▶ plays it row by row, click cells to inspect",
+    code: "generated Rust, hover-synced with the trace"
+  };
   els.tabs.forEach((tab, i) => {
+    tab.title = TAB_TIPS[tab.dataset.view] || "";
     tab.addEventListener("click", () => {
       state.view = tab.dataset.view;
       els.tabs.forEach((t) => {
