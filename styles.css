@@ -1372,3 +1372,32 @@ tr.code-hi-row td {
     stroke-dashoffset: 0;
   }
 }
+
+.design-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.design-gate {
+  display: grid;
+  grid-template-columns: 1fr 1fr 70px 2fr auto;
+  gap: 6px;
+}
+
+.design-gate input {
+  background: #0b0f13;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 4px 7px;
+  min-width: 0;
+  color: #b9c6d4;
+}
+
+.cell.sel-cell {
+  cursor: pointer;
+}
+
+.cell.sel-cell:hover {
+  background: #1a2430;
+}

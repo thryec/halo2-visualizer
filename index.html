@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Halo2 Trace Inspector</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="./styles.css?v=5" />
+    <link rel="stylesheet" href="./styles.css?v=6" />
   </head>
   <body>
     <header class="topbar">
@@ -37,10 +37,32 @@
         </label>
 
         <button id="shareBtn" class="btn ghost" type="button" title="Copy a link to this exact circuit">Share</button>
+        <button id="designToggle" class="btn ghost" type="button" aria-expanded="false">Design ⌄</button>
         <button id="buildToggle" class="btn ghost" type="button" aria-expanded="false">Build ⌄</button>
         <button id="jsonBtn" class="btn ghost" type="button" aria-expanded="false">JSON ⌄</button>
       </div>
     </header>
+
+    <div id="designDrawer" class="json-drawer" hidden>
+      <div class="drawer-head">
+        <span class="micro-label">design — declare the structure, see the circuit</span>
+        <button id="designApply" class="btn" type="button">Apply</button>
+        <span id="designStatus" class="parse-status"></span>
+        <button class="btn ghost drawer-close" type="button" aria-label="close">✕</button>
+      </div>
+      <div class="design-form">
+        <label class="build-field"><span class="micro-label">witness fields (MyCircuit) — comma list</span><input id="dWitness" placeholder="a" spellcheck="false" /></label>
+        <label class="build-field"><span class="micro-label">advice columns</span><input id="dAdvice" placeholder="a, b, c" spellcheck="false" /></label>
+        <label class="build-field"><span class="micro-label">instance columns</span><input id="dInstance" placeholder="instance" spellcheck="false" /></label>
+        <label class="build-field"><span class="micro-label">fixed columns</span><input id="dFixed" placeholder="" spellcheck="false" /></label>
+        <label class="build-field"><span class="micro-label">equality columns</span><input id="dEquality" placeholder="a, b, c, instance" spellcheck="false" /></label>
+        <span class="micro-label">gates — chip blank = inline in Circuit::configure()</span>
+        <div id="dGates"></div>
+        <button id="dAddGate" class="btn ghost" type="button">+ gate</button>
+        <label class="build-field"><span class="micro-label">rows</span><input id="dRows" type="number" min="1" max="64" value="4" /></label>
+        <p class="own-note">copy constraints and cell values: add via the JSON editor or click cells after applying.</p>
+      </div>
+    </div>
 
     <div id="buildDrawer" class="json-drawer" hidden>
       <div class="drawer-head">
@@ -167,10 +189,10 @@
       </aside>
     </main>
 
-    <script src="./eval.js?v=5"></script>
-    <script src="./examples.js?v=5"></script>
-    <script src="./builder.js?v=5"></script>
-    <script src="./codegen.js?v=5"></script>
-    <script src="./app.js?v=5"></script>
+    <script src="./eval.js?v=6"></script>
+    <script src="./examples.js?v=6"></script>
+    <script src="./builder.js?v=6"></script>
+    <script src="./codegen.js?v=6"></script>
+    <script src="./app.js?v=6"></script>
   </body>
 </html>

@@ -296,10 +296,10 @@ function renderGrid() {
           const key = `${row.id}.${col.name}`;
           if (col.type === "selector") {
             const on = row.selectors?.[col.name] ? 1 : 0;
-            return `<td class="cell sel-cell${on ? " sel-on" : ""}" data-col="${esc(col.name)}"><span class="sel-val">${on ? "1" : "·"}</span></td>`;
+            return `<td class="cell sel-cell${on ? " sel-on" : ""}" data-col="${esc(col.name)}" data-sel="${esc(col.name)}" tabindex="0" title="click to toggle"><span class="sel-val">${on ? "1" : "·"}</span></td>`;
           }
           const cell = row.cells?.[col.name];
-          if (!cell) return `<td class="cell" data-col="${esc(col.name)}"></td>`;
+          if (!cell) return `<td class="cell" data-col="${esc(col.name)}" tabindex="0" title="click to assign"></td>`;
           const net = d.netOf.get(key);
           const dot = net !== undefined
             ? `<span class="net-dot" style="background:${netColor(net)}"></span>`
@@ -621,7 +621,7 @@ function renderCellDetail(key) {
       <tr><td>cell</td><td>${esc(key)}</td></tr>
       <tr><td>column</td><td>${esc(col)} (${esc(d.colType.get(col) || "?")})</td></tr>
       <tr><td>region</td><td>${esc(row.region || "—")} · row ${d.rowIndex.get(rowId)}</td></tr>
-      <tr><td>label</td><td>${esc(cell.label ?? "—")}</td></tr>
+      <tr><td>label</td><td><span class="value-edit"><input id="labelEdit" type="text" value="${esc(cell.label ?? "")}" aria-label="cell label" /></span></td></tr>
       <tr><td>value</td><td>
         <span class="value-edit">
           <input id="valueEdit" type="text" inputmode="numeric" value="${cell.value !== undefined ? esc(cell.value) : ""}" placeholder="—" aria-label="cell value" />
@@ -638,6 +638,7 @@ function renderCellDetail(key) {
   const apply = () => {
     const raw = document.getElementById("valueEdit").value.trim();
     if (raw !== "" && !/^-?\d+$/.test(raw)) return;
+    cell.label = document.getElementById("labelEdit").value.trim();
     if (raw === "") delete cell.value;
     else cell.value = raw;
     els.jsonInput.value = JSON.stringify(circuit, null, 2);
@@ -646,6 +647,9 @@ function renderCellDetail(key) {
   };
   document.getElementById("valueApply").addEventListener("click", apply);
   document.getElementById("valueEdit").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") apply();
+  });
+  document.getElementById("labelEdit").addEventListener("keydown", (e) => {
     if (e.key === "Enter") apply();
   });
   document.getElementById("valueReveal")?.addEventListener("click", () => {
@@ -1382,6 +1386,54 @@ function bindCellEvents() {
       });
     }
   });
+
+  // selector cells: click to toggle the gate on/off for that row
+  els.grid.querySelectorAll(".cell.sel-cell").forEach((td) => {
+    const selName = td.dataset.sel;
+    const rowId = td.closest("tr").dataset.row;
+    const toggle = () => {
+      const row = state.circuit.rows.find((r) => r.id === rowId);
+      if (!row) return;
+      if (!row.selectors) row.selectors = {};
+      row.selectors[selName] = row.selectors[selName] ? 0 : 1;
+      els.jsonInput.value = JSON.stringify(state.circuit, null, 2);
+      state.check = window.HALO2_EVAL.checkCircuit(state.circuit, state.derived);
+      renderAll();
+    };
+    td.addEventListener("click", toggle);
+    td.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+    });
+  });
+
+  // empty non-selector cells: click to create a cell object, then open the editor
+  els.grid.querySelectorAll(".cell[data-col]:not(.sel-cell):not(.assigned)").forEach((td) => {
+    const col = td.dataset.col;
+    const rowId = td.closest("tr")?.dataset.row;
+    if (!rowId) return;
+    const assign = () => {
+      const row = state.circuit.rows.find((r) => r.id === rowId);
+      if (!row) return;
+      if (!row.cells) row.cells = {};
+      row.cells[col] = { label: "" };
+      els.jsonInput.value = JSON.stringify(state.circuit, null, 2);
+      state.check = window.HALO2_EVAL.checkCircuit(state.circuit, state.derived);
+      renderAll();
+      selectCell(`${rowId}.${col}`);
+    };
+    td.addEventListener("click", assign);
+    td.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); assign(); }
+    });
+  });
+}
+
+// reset a ghost drawer (build/design) to its closed state
+function resetGhostDrawer(drawerId, toggleId, label) {
+  document.getElementById(drawerId).hidden = true;
+  const t = document.getElementById(toggleId);
+  t.textContent = label + " ⌄";
+  t.setAttribute("aria-expanded", "false");
 }
 
 function openDrawer(open) {
@@ -1389,10 +1441,8 @@ function openDrawer(open) {
   els.jsonBtn.setAttribute("aria-expanded", String(open));
   els.jsonBtn.textContent = open ? "JSON ⌃" : "JSON ⌄";
   if (open) {
-    document.getElementById("buildDrawer").hidden = true;
-    const bt = document.getElementById("buildToggle");
-    bt.textContent = "Build ⌄";
-    bt.setAttribute("aria-expanded", "false");
+    resetGhostDrawer("buildDrawer", "buildToggle", "Build");
+    resetGhostDrawer("designDrawer", "designToggle", "Design");
   }
 }
 
@@ -1414,6 +1464,90 @@ function loadExample(id) {
   els.jsonInput.value = JSON.stringify(ex.circuit, null, 2);
   // deep-copy so value edits in one session don't mutate the pristine example
   loadCircuit(JSON.parse(JSON.stringify(ex.circuit)));
+}
+
+/* ---------- design drawer ---------- */
+
+function addGateRow() {
+  const div = document.createElement("div");
+  div.className = "design-gate";
+  div.innerHTML =
+    `<input class="dg-chip" placeholder="chip (blank = inline)" spellcheck="false" />` +
+    `<input class="dg-name" placeholder="gate name" spellcheck="false" />` +
+    `<input class="dg-selector" placeholder="q_x" spellcheck="false" />` +
+    `<input class="dg-constraints" placeholder="a * b - c; …" spellcheck="false" />` +
+    `<button class="btn ghost dg-remove" type="button">✕</button>`;
+  div.querySelector(".dg-remove").addEventListener("click", () => div.remove());
+  document.getElementById("dGates").appendChild(div);
+}
+
+function applyDesign() {
+  const list = (id) =>
+    document.getElementById(id).value.split(",").map((s) => s.trim()).filter(Boolean);
+  const witness = list("dWitness");
+  const advice = list("dAdvice");
+  const instance = list("dInstance");
+  const fixed = list("dFixed");
+  const equality = list("dEquality");
+
+  const gates = [];
+  const chipMap = new Map();
+  const selectors = [];
+  document.querySelectorAll("#dGates .design-gate").forEach((el) => {
+    const selector = el.querySelector(".dg-selector").value.trim();
+    if (!selector) return;
+    const chip = el.querySelector(".dg-chip").value.trim();
+    const name = el.querySelector(".dg-name").value.trim() || selector;
+    const constraints = el.querySelector(".dg-constraints").value
+      .split(";").map((s) => s.trim()).filter(Boolean);
+    if (!selectors.includes(selector)) selectors.push(selector);
+    const gate = { name, selector, constraints };
+    if (chip) {
+      if (!chipMap.has(chip)) chipMap.set(chip, { name: chip, columns: advice, gates: [] });
+      chipMap.get(chip).gates.push(gate);
+    } else {
+      gates.push(gate);
+    }
+  });
+
+  const rows = [];
+  if (advice.length) {
+    witness.forEach((f, i) =>
+      rows.push({
+        id: "w" + i,
+        region: "unconstrained",
+        op: "load private " + f,
+        cells: { [advice[0]]: { label: f } },
+        selectors: {}
+      })
+    );
+  }
+  const n = Number(document.getElementById("dRows").value) || 0;
+  for (let i = 0; i < n; i++) {
+    rows.push({ id: "r" + i, region: "region", op: "", cells: {}, selectors: {} });
+  }
+
+  const circuit = {
+    title: "my design",
+    subtitle: "designed by hand — toggle selector cells and set values in the trace",
+    columns: { advice, selectors, instance, fixed },
+    equality,
+    chips: [...chipMap.values()],
+    gates,
+    rows,
+    copyConstraints: [],
+    instanceConstraints: []
+  };
+
+  els.jsonInput.value = JSON.stringify(circuit, null, 2);
+  const st = document.getElementById("designStatus");
+  if (loadCircuit(circuit)) {
+    st.textContent = "applied ✓";
+    st.className = "parse-status ok";
+  } else {
+    st.textContent = "see errors";
+    st.className = "parse-status error";
+  }
 }
 
 function init() {
@@ -1520,20 +1654,37 @@ function init() {
   const buildToggle = document.getElementById("buildToggle");
   const buildStatus = document.getElementById("buildStatus");
   buildToggle.addEventListener("click", () => {
-    if (buildDrawer.hidden) openDrawer(false);
+    if (buildDrawer.hidden) {
+      openDrawer(false);
+      resetGhostDrawer("designDrawer", "designToggle", "Design");
+    }
     buildDrawer.hidden = !buildDrawer.hidden;
     buildToggle.setAttribute("aria-expanded", String(!buildDrawer.hidden));
     buildToggle.textContent = buildDrawer.hidden ? "Build ⌄" : "Build ⌃";
   });
+
+  const designDrawer = document.getElementById("designDrawer");
+  const designToggle = document.getElementById("designToggle");
+  designToggle.addEventListener("click", () => {
+    if (designDrawer.hidden) {
+      openDrawer(false);
+      resetGhostDrawer("buildDrawer", "buildToggle", "Build");
+    }
+    designDrawer.hidden = !designDrawer.hidden;
+    designToggle.setAttribute("aria-expanded", String(!designDrawer.hidden));
+    designToggle.textContent = designDrawer.hidden ? "Design ⌄" : "Design ⌃";
+  });
+  addGateRow();
+  document.getElementById("dAddGate").addEventListener("click", addGateRow);
+  document.getElementById("designApply").addEventListener("click", applyDesign);
+
   document.querySelectorAll(".drawer-close").forEach((btn) =>
     btn.addEventListener("click", () => {
       const d = btn.closest(".json-drawer");
       d.hidden = true;
       if (d.id === "jsonDrawer") openDrawer(false);
-      else {
-        buildToggle.textContent = "Build ⌄";
-        buildToggle.setAttribute("aria-expanded", "false");
-      }
+      else if (d.id === "designDrawer") resetGhostDrawer("designDrawer", "designToggle", "Design");
+      else resetGhostDrawer("buildDrawer", "buildToggle", "Build");
     })
   );
   ["buildStmt", "buildWitness"].forEach((id) =>
