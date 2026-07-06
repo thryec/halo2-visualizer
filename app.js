@@ -19,6 +19,7 @@ const els = {
   jsonInput: document.getElementById("jsonInput"),
   parseStatus: document.getElementById("parseStatus"),
   valuesToggle: document.getElementById("valuesToggle"),
+  practiceToggle: document.getElementById("practiceToggle"),
   tabs: [...document.querySelectorAll(".tab")],
   title: document.getElementById("circuitTitle"),
   subtitle: document.getElementById("circuitSubtitle"),
@@ -27,6 +28,7 @@ const els = {
   prevBtn: document.getElementById("prevBtn"),
   playBtn: document.getElementById("playBtn"),
   nextBtn: document.getElementById("nextBtn"),
+  endBtn: document.getElementById("endBtn"),
   stepCounter: document.getElementById("stepCounter"),
   stepOp: document.getElementById("stepOp"),
   gridScroll: document.getElementById("gridScroll"),
@@ -50,6 +52,8 @@ const state = {
   step: 0,
   playing: false,
   timer: null,
+  practice: false,
+  solutions: null,
   selection: null // {type:"cell", key} | {type:"pair", pair:[a,b], kind:"copy"|"public"}
 };
 
@@ -290,12 +294,15 @@ function renderGrid() {
           const dot = net !== undefined
             ? `<span class="net-dot" style="background:${netColor(net)}"></span>`
             : "";
+          const isBlank = cell.value === undefined && state.practice && state.solutions?.has(key);
           const value = cell.value !== undefined
             ? `<span class="cell-value">= ${esc(cell.value)}</span>`
+            : isBlank
+            ? `<span class="cell-value blank-q">= ?</span>`
             : "";
           const instCls = col.type === "instance" ? " col-instance-cell" : "";
           return (
-            `<td class="cell assigned${instCls}" data-cell="${esc(key)}" data-col="${esc(col.name)}" tabindex="0" ` +
+            `<td class="cell assigned${instCls}${isBlank ? " blank" : ""}" data-cell="${esc(key)}" data-col="${esc(col.name)}" tabindex="0" ` +
             `title="${esc(key)}${net !== undefined ? ` · equal-net ${net + 1}` : ""}">` +
             `<div class="cell-inner">${dot}<span class="cell-label">${esc(cell.label ?? "")}</span>${value}</div></td>`
           );
@@ -357,10 +364,24 @@ function applyStep() {
   const row = state.circuit.rows[state.step];
   els.stepCounter.textContent = `step ${state.step + 1}/${state.circuit.rows.length}`;
   const opText = row ? `${row.region || ""} — ${row.op || ""}` : "";
-  els.stepOp.textContent = opText;
-  els.stepOp.title = opText;
+  const blanks = row ? rowBlankCols(row) : [];
+  const text = blanks.length ? `fill ${blanks.join(", ")} — ${row.op || row.region}` : opText;
+  els.stepOp.textContent = text;
+  els.stepOp.title = text;
 
   drawWires();
+}
+
+function rowBlankCols(row) {
+  if (!state.practice || !state.solutions) return [];
+  const cols = [];
+  state.solutions.forEach((_, key) => {
+    const p = splitRef(key);
+    if (p.row !== row.id) return;
+    const cell = row.cells?.[p.col];
+    if (!cell || cell.value === undefined) cols.push(p.col);
+  });
+  return cols;
 }
 
 function setStep(n, opts = {}) {
@@ -387,6 +408,7 @@ function togglePlay() {
   state.timer = setInterval(() => {
     if (state.step >= state.circuit.rows.length - 1) return stopPlay();
     setStep(state.step + 1, { keepPlaying: true });
+    if (state.practice && rowBlankCols(state.circuit.rows[state.step]).length) stopPlay();
   }, 1200);
 }
 
@@ -527,6 +549,20 @@ function selectPair(pair, kind, listEl) {
   drawWires();
 }
 
+// failing copy/instance pairs: mark both endpoint cells red
+function markPairFails() {
+  (state.check?.pairs || []).forEach((p) => {
+    if (p.ok !== false) return;
+    p.pair.forEach((ref) => {
+      const td = cellEl(ref);
+      if (td) {
+        td.classList.add("pair-fail-cell");
+        td.title += ` · ✗ ${p.detail}`;
+      }
+    });
+  });
+}
+
 // re-apply selection classes after the grid or side lists are rebuilt
 function restoreSelectionMarks() {
   const sel = state.selection;
@@ -580,6 +616,9 @@ function renderCellDetail(key) {
         <span class="value-edit">
           <input id="valueEdit" type="text" inputmode="numeric" value="${cell.value !== undefined ? esc(cell.value) : ""}" placeholder="—" aria-label="cell value" />
           <button id="valueApply" class="btn ghost" type="button" title="apply value and re-check constraints">set</button>
+          ${state.practice && state.solutions?.has(key) && cell.value === undefined
+            ? `<button id="valueReveal" class="btn ghost" type="button">reveal</button>`
+            : ""}
         </span>
       </td></tr>
       <tr><td>equal net</td><td>${netHtml}</td></tr>
@@ -599,6 +638,12 @@ function renderCellDetail(key) {
   document.getElementById("valueApply").addEventListener("click", apply);
   document.getElementById("valueEdit").addEventListener("keydown", (e) => {
     if (e.key === "Enter") apply();
+  });
+  document.getElementById("valueReveal")?.addEventListener("click", () => {
+    cell.value = state.solutions.get(key);
+    els.jsonInput.value = JSON.stringify(circuit, null, 2);
+    state.check = window.HALO2_EVAL.checkCircuit(circuit, d);
+    renderAll();
   });
 }
 
@@ -1006,7 +1051,85 @@ function renderAll() {
   renderCheckBanner();
   renderSidePanels();
   renderLegend();
+  if (view !== "configure") markPairFails();
   restoreSelectionMarks();
+}
+
+/* ---------- practice mode ---------- */
+
+function loadCellKeys() {
+  const { circuit, derived: d } = state;
+  const keys = new Set();
+  circuit.rows.forEach((row) => {
+    const active = Object.keys(row.selectors || {}).some((s) => row.selectors[s]);
+    const cells = Object.entries(row.cells || {});
+    if (active || !cells.length) return;
+    if (!cells.every(([c]) => d.colType.get(c) === "advice")) return;
+    cells.forEach(([col]) => keys.add(`${row.id}.${col}`));
+  });
+  return keys;
+}
+
+function cellAt(key) {
+  const { row: rowId, col } = splitRef(key);
+  return state.circuit.rows.find((r) => r.id === rowId)?.cells?.[col];
+}
+
+function enterPractice() {
+  if (!state.circuit) {
+    els.practiceToggle.checked = false;
+    return;
+  }
+  const { circuit, derived: d } = state;
+  const loads = loadCellKeys();
+  const solutions = new Map();
+  circuit.rows.forEach((row) => {
+    Object.entries(row.cells || {}).forEach(([col, cell]) => {
+      const key = `${row.id}.${col}`;
+      if (loads.has(key) || cell.value === undefined || d.colType.get(col) !== "advice") return;
+      solutions.set(key, cell.value);
+      delete cell.value;
+    });
+  });
+  if (!solutions.size) {
+    setStatus("nothing to practice — this circuit has no computed values", "error");
+    els.practiceToggle.checked = false;
+    return;
+  }
+  state.solutions = solutions;
+  state.practice = true;
+  document.body.classList.add("practice", "show-values");
+  els.valuesToggle.checked = true;
+  els.endBtn.title = "Reveal all answers";
+  state.check = window.HALO2_EVAL.checkCircuit(circuit, d);
+  setStep(0);
+  renderAll();
+}
+
+function exitPractice() {
+  if (state.solutions) {
+    state.solutions.forEach((value, key) => {
+      const cell = cellAt(key);
+      if (cell) cell.value = value;
+    });
+  }
+  state.solutions = null;
+  state.practice = false;
+  document.body.classList.remove("practice");
+  els.endBtn.title = "Show full trace";
+  state.check = window.HALO2_EVAL.checkCircuit(state.circuit, state.derived);
+  renderAll();
+}
+
+function revealAll() {
+  if (!state.solutions) return;
+  state.solutions.forEach((value, key) => {
+    const cell = cellAt(key);
+    if (cell && cell.value === undefined) cell.value = value;
+  });
+  els.jsonInput.value = JSON.stringify(state.circuit, null, 2);
+  state.check = window.HALO2_EVAL.checkCircuit(state.circuit, state.derived);
+  renderAll();
 }
 
 function loadCircuit(circuit) {
@@ -1014,6 +1137,13 @@ function loadCircuit(circuit) {
   if (errors.length) {
     showErrors(errors);
     return false;
+  }
+  if (state.practice) {
+    state.practice = false;
+    state.solutions = null;
+    els.practiceToggle.checked = false;
+    document.body.classList.remove("practice");
+    els.endBtn.title = "Show full trace";
   }
   stopPlay();
   document.getElementById("emptyState").hidden = true;
@@ -1032,23 +1162,46 @@ function loadCircuit(circuit) {
 function renderCheckBanner() {
   const el = document.getElementById("checkBanner");
   const c = state.check;
-  if (!c || !c.checked) {
+  if (!c || (!c.checked && !state.practice)) {
     el.textContent = "";
     el.className = "check-banner";
     return;
   }
+  if (!c.checked && state.practice) {
+    let left = 0;
+    state.solutions?.forEach((_, key) => {
+      const cell = cellAt(key);
+      if (!cell || cell.value === undefined) left++;
+    });
+    el.textContent = `practice: ${left} cells left — fill them via a cell's set field`;
+    el.className = "check-banner";
+    return;
+  }
   const pairFails = c.pairs.filter((p) => p.ok === false).length;
+  let remaining = 0;
+  if (state.practice && state.solutions) {
+    state.solutions.forEach((_, key) => {
+      const cell = cellAt(key);
+      if (!cell || cell.value === undefined) remaining++;
+    });
+    if (remaining === 0 && c.failures === 0 && c.incomplete === 0) {
+      el.textContent = "solved ✓ — every constraint satisfied";
+      el.className = "check-banner ok";
+      return;
+    }
+  }
+  const prefix = state.practice && remaining > 0 ? `practice: ${remaining} cells left · ` : "";
   if (c.failures) {
-    el.textContent = `✗ ${c.failures} constraint${c.failures > 1 ? "s" : ""} failing`;
+    el.textContent = prefix + `✗ ${c.failures} constraint${c.failures > 1 ? "s" : ""} failing`;
     el.className = "check-banner fail";
     el.title = c.pairs
       .filter((p) => p.ok === false)
       .map((p) => `✗ ${p.pair[0]} ↔ ${p.pair[1]}: ${p.detail}`)
       .join("\n") || "see ✗ rows in the trace";
   } else {
-    el.textContent = c.incomplete
+    el.textContent = prefix + (c.incomplete
       ? `✓ ${c.checked} checked · ${c.incomplete} skipped (missing values)`
-      : `✓ all ${c.checked} constraints satisfied`;
+      : `✓ all ${c.checked} constraints satisfied`);
     el.className = "check-banner ok";
     el.title = "gates, lookups, copies and instance pins — checked like MockProver";
   }
@@ -1242,6 +1395,10 @@ function init() {
     document.body.classList.toggle("show-values", els.valuesToggle.checked);
     drawWires();
   });
+  els.practiceToggle.addEventListener("change", () => {
+    if (els.practiceToggle.checked) enterPractice();
+    else exitPractice();
+  });
 
   els.tabs.forEach((tab, i) => {
     tab.addEventListener("click", () => {
@@ -1264,9 +1421,10 @@ function init() {
 
   els.prevBtn.addEventListener("click", () => setStep(state.step - 1));
   els.nextBtn.addEventListener("click", () => setStep(state.step + 1));
-  document.getElementById("endBtn").addEventListener("click", () =>
-    setStep(state.circuit.rows.length - 1)
-  );
+  els.endBtn.addEventListener("click", () => {
+    if (state.practice) revealAll();
+    setStep(state.circuit.rows.length - 1);
+  });
   els.playBtn.addEventListener("click", togglePlay);
 
   const buildDrawer = document.getElementById("buildDrawer");

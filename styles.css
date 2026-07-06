@@ -561,6 +561,20 @@ body.show-values .cell-value {
   display: inline;
 }
 
+.cell.blank {
+  outline: 1px dashed var(--selector);
+  outline-offset: -3px;
+}
+
+.cell-value.blank-q {
+  color: var(--selector);
+  font-weight: 700;
+}
+
+body.practice .cell-value.blank-q {
+  display: inline;
+}
+
 .cell.col-instance-cell .cell-label {
   color: var(--instance);
 }
@@ -756,6 +770,11 @@ tr.row-fail td.cell:not(.sel-on) {
 .pair-fail {
   color: var(--error);
   font-weight: 700;
+}
+
+.trace-grid td.cell.pair-fail-cell {
+  outline: 2px solid var(--error);
+  outline-offset: -2px;
 }
 
 /* ---------- wires ---------- */
