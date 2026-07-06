@@ -364,6 +364,7 @@ function applyStep() {
 }
 
 function setStep(n, opts = {}) {
+  if (!state.circuit) return;
   const max = state.circuit.rows.length - 1;
   state.step = Math.max(0, Math.min(max, n));
   if (!opts.keepPlaying) stopPlay();
@@ -377,6 +378,7 @@ function stopPlay() {
 }
 
 function togglePlay() {
+  if (!state.circuit) return;
   if (state.playing) return stopPlay();
   clearSelection();
   state.playing = true;
@@ -1014,6 +1016,8 @@ function loadCircuit(circuit) {
     return false;
   }
   stopPlay();
+  document.getElementById("emptyState").hidden = true;
+  document.body.classList.remove("no-circuit");
   state.circuit = circuit;
   state.derived = derive(circuit);
   state.check = window.HALO2_EVAL.checkCircuit(circuit, state.derived);
@@ -1103,6 +1107,7 @@ async function decodeShareHash(hash) {
 }
 
 async function shareCircuit() {
+  if (!state.circuit) return;
   const btn = document.getElementById("shareBtn");
   try {
     location.hash = await encodeShareHash(state.circuit);
@@ -1163,11 +1168,17 @@ function parseAndRender() {
 function loadExample(id) {
   const ex = window.HALO2_EXAMPLES.find((e) => e.id === id);
   if (!ex) return;
+  els.exampleSelect.value = id;
   els.jsonInput.value = JSON.stringify(ex.circuit, null, 2);
-  loadCircuit(ex.circuit);
+  // deep-copy so value edits in one session don't mutate the pristine example
+  loadCircuit(JSON.parse(JSON.stringify(ex.circuit)));
 }
 
 function init() {
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "examples…";
+  els.exampleSelect.appendChild(placeholder);
   window.HALO2_EXAMPLES.forEach((ex) => {
     const opt = document.createElement("option");
     opt.value = ex.id;
@@ -1175,7 +1186,47 @@ function init() {
     els.exampleSelect.appendChild(opt);
   });
 
-  els.exampleSelect.addEventListener("change", () => loadExample(els.exampleSelect.value));
+  // empty landing state: example cards + inline builder
+  const emptyExamples = document.getElementById("emptyExamples");
+  window.HALO2_EXAMPLES.forEach((ex) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "example-card";
+    card.innerHTML = `<span class="ex-name">${esc(ex.label)}</span><span class="ex-desc">${esc(ex.blurb || "")}</span>`;
+    card.addEventListener("click", () => {
+      els.exampleSelect.value = ex.id;
+      loadExample(ex.id);
+    });
+    emptyExamples.appendChild(card);
+  });
+  document.getElementById("emptyBuildBtn").addEventListener("click", () => {
+    const stmt = document.getElementById("emptyStmt").value.trim() || document.getElementById("emptyStmt").placeholder;
+    const wit = document.getElementById("emptyWitness").value.trim();
+    try {
+      const circuit = window.buildCircuit(stmt, wit);
+      els.jsonInput.value = JSON.stringify(circuit, null, 2);
+      document.getElementById("buildStmt").value = stmt;
+      document.getElementById("buildWitness").value = wit;
+      loadCircuit(circuit);
+    } catch (e) {
+      const st = document.getElementById("emptyStatus");
+      st.textContent = e.message;
+      st.className = "parse-status error";
+    }
+  });
+  ["emptyStmt", "emptyWitness"].forEach((id) =>
+    document.getElementById(id).addEventListener("keydown", (e) => {
+      if (e.key === "Enter") document.getElementById("emptyBuildBtn").click();
+    })
+  );
+  document.getElementById("emptyJsonBtn").addEventListener("click", () => {
+    openDrawer(true);
+    els.jsonInput.focus();
+  });
+
+  els.exampleSelect.addEventListener("change", () => {
+    if (els.exampleSelect.value) loadExample(els.exampleSelect.value);
+  });
   els.renderBtn.addEventListener("click", parseAndRender);
   els.jsonInput.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") parseAndRender();
@@ -1256,14 +1307,12 @@ function init() {
     decodeShareHash(hash)
       .then((circuit) => {
         els.jsonInput.value = JSON.stringify(circuit, null, 2);
-        if (!loadCircuit(circuit)) loadExample(window.HALO2_EXAMPLES[0].id);
+        loadCircuit(circuit);
       })
-      .catch(() => {
-        setStatus("could not decode shared link — loading default example", "error");
-        loadExample(window.HALO2_EXAMPLES[0].id);
-      });
+      .catch(() => setStatus("could not decode shared link", "error"));
   } else {
-    loadExample(window.HALO2_EXAMPLES[0].id);
+    document.body.classList.add("no-circuit");
+    document.getElementById("emptyState").hidden = false;
   }
 }
 

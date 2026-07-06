@@ -166,9 +166,13 @@ select {
 .drawer-head {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
   margin-bottom: 6px;
+}
+
+.drawer-head .micro-label {
+  margin-right: auto;
 }
 
 .parse-status {
@@ -237,6 +241,92 @@ details.side-section > summary::before {
 
 details.side-section[open] > summary::before {
   content: "▾ ";
+}
+
+/* ---------- empty landing state ---------- */
+
+.empty-state {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 9vh 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.empty-brand {
+  font-size: 15px;
+  letter-spacing: 0.18em;
+  color: var(--text);
+}
+
+.empty-brand .brand-mark {
+  font-size: 20px;
+  margin-right: 6px;
+}
+
+.empty-lede {
+  margin: 0 0 14px;
+  color: var(--dim);
+  max-width: 56ch;
+}
+
+.empty-build {
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.empty-examples {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.example-card {
+  text-align: left;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  padding: 9px 12px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.example-card:hover {
+  border-color: var(--advice);
+}
+
+.example-card .ex-name {
+  display: block;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.example-card .ex-desc {
+  display: block;
+  color: var(--dim);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.empty-json {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+body.no-circuit .layout {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .empty-examples {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------- layout ---------- */
@@ -888,7 +978,8 @@ tr.code-hi-row td {
 /* ---------- configure view ---------- */
 
 .config-view {
-  margin-top: 4px;
+  margin: 4px auto 0;
+  max-width: 880px;
 }
 
 .config-section {

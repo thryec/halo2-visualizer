@@ -20,8 +20,6 @@
           <select id="exampleSelect"></select>
         </label>
 
-        <button id="renderBtn" class="btn" type="button">Render</button>
-
         <div class="tabs" role="tablist" aria-label="View">
           <button class="tab" data-view="configure" role="tab" aria-selected="false" aria-controls="configView" type="button">configure</button>
           <button class="tab active" data-view="synthesize" role="tab" aria-selected="true" aria-controls="gridScroll" type="button">synthesize</button>
@@ -60,9 +58,39 @@
     <div id="jsonDrawer" class="json-drawer" hidden>
       <div class="drawer-head">
         <span class="micro-label">circuit json — edit and press render</span>
+        <button id="renderBtn" class="btn" type="button">Render</button>
         <span id="parseStatus" class="parse-status">ready</span>
       </div>
       <textarea id="jsonInput" spellcheck="false" aria-label="Circuit JSON"></textarea>
+    </div>
+
+    <div id="emptyState" class="empty-state" hidden>
+      <div class="empty-brand"><span class="brand-mark">◫</span> HALO2 TRACE INSPECTOR</div>
+      <p class="empty-lede">
+        See a Halo2 circuit as the table it really is — typed columns, gates, selectors,
+        copy wires, lookups, and a MockProver-style check on every constraint.
+      </p>
+
+      <div class="empty-build">
+        <span class="micro-label">write the statement you want to prove</span>
+        <div class="build-form">
+          <label class="build-field">
+            <span class="micro-label">prove</span>
+            <input id="emptyStmt" placeholder="x^3 + x*y + y = out" spellcheck="false" />
+          </label>
+          <label class="build-field">
+            <span class="micro-label">witness (optional)</span>
+            <input id="emptyWitness" placeholder="x = 2, y = 3" spellcheck="false" />
+          </label>
+          <button id="emptyBuildBtn" class="btn" type="button">Generate trace</button>
+        </div>
+        <p id="emptyStatus" class="parse-status">supports + · ^ over private variables — the right side is the public output name</p>
+      </div>
+
+      <span class="micro-label">or start from an example</span>
+      <div id="emptyExamples" class="empty-examples"></div>
+
+      <p class="empty-json">already have circuit JSON? <button id="emptyJsonBtn" class="btn ghost" type="button">open the JSON editor</button></p>
     </div>
 
     <main class="layout">

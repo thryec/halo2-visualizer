@@ -5,6 +5,7 @@ window.HALO2_EXAMPLES = [
   {
     id: "week5-p3",
     label: "a^5 + a = b (AddMulChip)",
+    blurb: "one chip, values wired between rows with copy constraints",
     circuit: {
       title: "a⁵ + a = b",
       subtitle:
@@ -102,6 +103,7 @@ window.HALO2_EXAMPLES = [
   {
     id: "fibonacci",
     label: "Fibonacci (rotation gate)",
+    blurb: "one column — the gate reads 3 rows at once, no copies needed",
     circuit: {
       title: "Fibonacci — one column, rotation gate",
       subtitle:
@@ -177,6 +179,7 @@ window.HALO2_EXAMPLES = [
   {
     id: "iszero-multichip",
     label: "isZero(x·y) — two chips, shared columns",
+    blurb: "two chips borrow the same advice columns; inverse-trick aux witness",
     circuit: {
       title: "isZero(x · y) — two chips share a, b, c",
       subtitle:
@@ -263,6 +266,7 @@ window.HALO2_EXAMPLES = [
   {
     id: "range-add",
     label: "x + y = z, range-checked (lookup)",
+    blurb: "lookup argument pins every value into a 16-row table",
     circuit: {
       title: "x + y = z with 4-bit range checks",
       subtitle:
