@@ -1153,6 +1153,12 @@ function loadCircuit(circuit) {
   state.check = window.HALO2_EVAL.checkCircuit(circuit, state.derived);
   state.selection = null;
   state.step = 0; // trace builds up via the player
+  // open on configure — same order you write a circuit: shape first, then synthesize
+  state.view = "configure";
+  els.tabs.forEach((t) => {
+    t.classList.toggle("active", t.dataset.view === "configure");
+    t.setAttribute("aria-selected", String(t.dataset.view === "configure"));
+  });
   els.cellDetail.textContent = "click a cell in the trace";
   setStatus("rendered ✓", "ok");
   renderAll();
