@@ -56,22 +56,73 @@ window.generateRust = function (circuit) {
       ? ident(gate.name.replace(/\s*gate\s*$/i, "").trim() || gate.selector)
       : ident(gate.selector.replace(/^q_/, ""));
 
-  // "q · (a + b − c) = 0" -> "a + b - c", or null if it doesn't match
-  const gateBody = (expr) => {
-    const m = String(expr).match(/\(([^()]+)\)\s*=\s*0\s*$/);
-    return m ? m[1].replace(/·/g, "*").replace(/−/g, "-").trim() : null;
-  };
-
-  // output formula for chip methods: recognize a+b / a*b bodies
+  // output formula for chip methods: recognize a+b-c / a*b-c constraints
   const outFormula = (body, inA, inB) => {
     if (!body) return null;
-    const norm = body.replace(/\s+/g, "");
+    const norm = body.replace(/\s+/g, "").replace(/·/g, "*").replace(/−/g, "-");
     const out = norm.match(/^(.+)-([A-Za-z_]\w*)$/);
     if (!out) return null;
     const lhs = out[1];
     if (lhs === `${inA}+${inB}` || lhs === `${inB}+${inA}`) return "a_val + b_val";
     if (lhs === `${inA}*${inB}` || lhs === `${inB}*${inA}`) return "a_val * b_val";
     return null;
+  };
+
+  /* expression -> Rust (uses the shared parser from eval.js) */
+
+  const fixedSet = new Set(circuit.columns?.fixed || []);
+  const rotVar = (col, rot) =>
+    rot === 0 ? ident(col)
+    : rot === 1 ? `${ident(col)}_next`
+    : rot === -1 ? `${ident(col)}_prev`
+    : rot > 0 ? `${ident(col)}_${rot}` : `${ident(col)}_m${-rot}`;
+  const rotRust = (rot) =>
+    rot === 0 ? "Rotation::cur()" : rot === 1 ? "Rotation::next()" : rot === -1 ? "Rotation::prev()" : `Rotation(${rot})`;
+
+  // unique (col, rot) pairs referenced by a list of expressions; null if unparseable
+  const exprRefs = (exprs) => {
+    try {
+      const seen = new Map();
+      exprs.forEach((src) =>
+        window.HALO2_EVAL.refsOf(window.HALO2_EVAL.parseExpr(src)).forEach((r) =>
+          seen.set(`${r.col}@${r.rot}`, r)
+        )
+      );
+      return [...seen.values()];
+    } catch {
+      return null;
+    }
+  };
+
+  const astToRust = (ast) => {
+    switch (ast.op) {
+      case "num": return `Expression::Constant(F::from(${ast.v}u64))`;
+      case "ref": return `${rotVar(ast.col, ast.rot)}.clone()`;
+      case "neg": return `-${astToRust(ast.e)}`;
+      default: {
+        const l = astToRust(ast.l);
+        const r = astToRust(ast.r);
+        return ast.op === "*" && (ast.l.op === "+" || ast.l.op === "-" || ast.r.op === "+" || ast.r.op === "-")
+          ? `${wrap(ast.l, l)} * ${wrap(ast.r, r)}`
+          : `${l} ${ast.op} ${r}`;
+      }
+    }
+  };
+  const wrap = (node, rust) => (node.op === "+" || node.op === "-" ? `(${rust})` : rust);
+  const exprToRust = (src) => {
+    try {
+      return astToRust(window.HALO2_EVAL.parseExpr(src));
+    } catch {
+      return `/* TODO: ${src} */`;
+    }
+  };
+
+  // emit query lines + constraint vec for a gate or lookup body
+  const pushQueries = (refs, indent, section) => {
+    refs.forEach((r) => {
+      const q = fixedSet.has(r.col) ? "query_fixed" : "query_advice";
+      push(`${indent}let ${rotVar(r.col, r.rot)} = meta.${q}(${ident(r.col)}, ${rotRust(r.rot)});`, section, { col: r.col });
+    });
   };
 
   /* ---- MyCircuit: witness only ---- */
@@ -124,18 +175,16 @@ window.generateRust = function (circuit) {
     push("");
 
     (chip.gates || []).forEach((g) => {
-      const body = gateBody(g.expression);
+      const constraints = g.constraints || [];
+      const refs = exprRefs(constraints) || [];
       push(`        meta.create_gate("${g.name || g.selector}", |meta| {`, "chipcfg", { col: g.selector });
-      chipCols.forEach((c) =>
-        push(`            let ${ident(c)} = meta.query_advice(${ident(c)}, Rotation::cur());`, "chipcfg", { col: c })
-      );
+      pushQueries(refs, "            ", "chipcfg");
       push(`            let ${ident(g.selector)} = meta.query_selector(${ident(g.selector)});`, "chipcfg", { col: g.selector });
-      if (body) {
-        push(`            vec![${ident(g.selector)} * (${body})]`, "chipcfg", { col: g.selector });
-      } else {
-        push(`            // ${g.expression}`, "chipcfg");
-        push(`            vec![/* TODO: express "${g.expression}" */]`, "chipcfg");
-      }
+      push("            vec![", "chipcfg");
+      constraints.forEach((c) =>
+        push(`                ${ident(g.selector)}.clone() * (${exprToRust(c)}),`, "chipcfg", { col: g.selector })
+      );
+      push("            ]", "chipcfg");
       push("        });", "chipcfg");
       push("");
     });
@@ -158,11 +207,13 @@ window.generateRust = function (circuit) {
       push("    }", "chipcfg");
     }
 
-    // one method per gate (2-in 1-out convention: first two chip columns in, last out)
+    // one method per simple gate: single constraint, current-row only, 2-in/1-out
     (chip.gates || []).forEach((g) => {
       if (chipCols.length < 3) return;
+      const refs = exprRefs(g.constraints || []);
+      if (!refs || refs.some((r) => r.rot !== 0) || (g.constraints || []).length !== 1) return;
       const [inA, inB, outC] = [chipCols[0], chipCols[1], chipCols[chipCols.length - 1]];
-      const formula = outFormula(gateBody(g.expression), inA, inB);
+      const formula = outFormula(g.constraints[0], inA, inB);
       const region = `${methodName(g)} region`;
       push("");
       push(`    pub fn ${methodName(g)}(`, "chipcfg", { col: g.selector });
@@ -183,7 +234,7 @@ window.generateRust = function (circuit) {
       if (formula) {
         push(`            region.assign_advice(|| "${outC}", self.config.${ident(outC)}, 0, || ${formula})`, "chipcfg", { col: outC });
       } else {
-        push(`            let out_val = a_val; // TODO: compute per gate "${g.expression}"`, "chipcfg");
+        push(`            let out_val = a_val; // TODO: compute per gate "${g.constraints[0]}"`, "chipcfg");
         push(`            region.assign_advice(|| "${outC}", self.config.${ident(outC)}, 0, || out_val)`, "chipcfg", { col: outC });
       }
       push("        })", "chipcfg");
@@ -196,10 +247,17 @@ window.generateRust = function (circuit) {
 
   /* ---- CircuitConfig + Circuit impl ---- */
 
+  const tables = circuit.tables || [];
+  const lookups = circuit.lookups || [];
+  const tableColVar = (t, c) => `${ident(t.name)}_${ident(c)}`;
+
   push("// ── CircuitConfig: the circuit's full shape — instance columns + chip configs.", "config");
   push("#[derive(Clone)]", "config");
   push("pub struct CircuitConfig {", "config");
   instance.forEach((c) => push(`    ${ident(c)}: Column<Instance>,`, "config", { col: c }));
+  tables.forEach((t) =>
+    t.columns.forEach((c) => push(`    ${tableColVar(t, c)}: TableColumn,`, "config"))
+  );
   chips.forEach((chip) => push(`    config: ${ident(chip.name)}Config,`, "config"));
   push("}", "config");
   push("");
@@ -226,11 +284,45 @@ window.generateRust = function (circuit) {
     push(`        meta.enable_equality(${ident(c)});   // allow copy constraints on ${c}`, "config", { col: c })
   );
   push("");
+  (circuit.columns?.fixed || []).forEach((c) =>
+    push(`        let ${ident(c)} = meta.fixed_column();`, "config", { col: c })
+  );
+  tables.forEach((t) =>
+    t.columns.forEach((c) =>
+      push(`        let ${tableColVar(t, c)} = meta.lookup_table_column();   // table "${t.name}"`, "config")
+    )
+  );
+  if (tables.length) push("");
+  lookups.forEach((lk) => {
+    const refs = exprRefs(lk.inputs || []) || [];
+    const tbl = tables.find((t) => t.name === lk.table);
+    const tcols = lk.tableColumns || tbl?.columns || [];
+    push(`        meta.lookup("${lk.name || "lookup"}", |meta| {`, "config");
+    pushQueries(refs, "            ", "config");
+    if (lk.selector)
+      push(`            let ${ident(lk.selector)} = meta.query_selector(${ident(lk.selector)});`, "config", { col: lk.selector });
+    push("            vec![", "config");
+    (lk.inputs || []).forEach((input, i) => {
+      const rust = exprToRust(input);
+      const gated = lk.selector ? `${ident(lk.selector)}.clone() * (${rust})` : rust;
+      push(`                (${gated}, ${tbl ? tableColVar(tbl, tcols[i]) : "/* table col */"}),`, "config");
+    });
+    push("            ]", "config");
+    push("        });", "config");
+    push("");
+  });
   chips.forEach((chip) => {
     const args = (chip.columns || []).map(ident).join(", ");
     push(`        let config = ${ident(chip.name)}::configure(meta, ${args});`, "config");
   });
-  push(`        CircuitConfig { ${[...instance.map(ident), ...(chips.length ? ["config"] : [])].join(", ")} }`, "config");
+  push(
+    `        CircuitConfig { ${[
+      ...instance.map(ident),
+      ...tables.flatMap((t) => t.columns.map((c) => tableColVar(t, c))),
+      ...(chips.length ? ["config"] : [])
+    ].join(", ")} }`,
+    "config"
+  );
   push("    }", "config");
   push("");
 
@@ -246,6 +338,15 @@ window.generateRust = function (circuit) {
     push(`        let chip = ${ident(chip.name)}::construct(config.config);`, "synth")
   );
   push("");
+
+  tables.forEach((t) => {
+    push(`        layouter.assign_table(|| "${t.name}", |mut table| {`, "synth");
+    push(`            // ${t.rows.length} rows — fill every (${t.columns.join(", ")}) tuple:`, "synth");
+    push(`            // table.assign_cell(|| "${t.columns[0]}", config.${tableColVar(t, t.columns[0])}, i, || Value::known(F::from(v)))?;`, "synth");
+    push("            todo!()", "synth");
+    push("        })?;", "synth");
+    push("");
+  });
 
   loadRows.forEach((r) => {
     Object.values(r.cells).forEach((cell) => {
