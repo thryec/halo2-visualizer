@@ -1,5 +1,7 @@
 # Halo2 Trace Inspector
 
+**Live: https://thryec.github.io/halo2-visualizer/**
+
 Static web app for learning Halo2 by looking at circuits as a PLONKish trace: typed columns, regions, assigned cells, selectors, rotation gates, copy constraints, lookup tables, and public instance pins. Every constraint is also *checked* against the assigned values, MockProver-style — edit a cell and watch exactly which constraint breaks.
 
 Built alongside the RareSkills Halo2 course. Examples: `a^5 + a = b` (chip + copy constraints), Fibonacci (one column + rotation gate), and a range-checked add (lookups).
@@ -75,3 +77,11 @@ Edit via the JSON drawer and press Render (or Cmd/Ctrl+Enter). Schema:
 ```
 
 Validation reports unknown columns, bad refs, duplicate row ids, unparseable expressions, and mismatched lookup shapes with exact locations. Copy-net colors, region grouping, rotation footprints, and all checking are computed from the JSON, so any circuit expressible in this schema renders and verifies without code changes.
+
+## Sharing
+
+The **Share** button copies a link with the current circuit compressed into the URL hash — no backend, the whole circuit travels in the link. Anyone opening it sees exactly what you see.
+
+## License
+
+MIT
