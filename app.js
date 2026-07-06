@@ -1152,6 +1152,12 @@ function openDrawer(open) {
   els.jsonDrawer.hidden = !open;
   els.jsonBtn.setAttribute("aria-expanded", String(open));
   els.jsonBtn.textContent = open ? "JSON ⌃" : "JSON ⌄";
+  if (open) {
+    document.getElementById("buildDrawer").hidden = true;
+    const bt = document.getElementById("buildToggle");
+    bt.textContent = "Build ⌄";
+    bt.setAttribute("aria-expanded", "false");
+  }
 }
 
 function parseAndRender() {
@@ -1267,10 +1273,22 @@ function init() {
   const buildToggle = document.getElementById("buildToggle");
   const buildStatus = document.getElementById("buildStatus");
   buildToggle.addEventListener("click", () => {
+    if (buildDrawer.hidden) openDrawer(false);
     buildDrawer.hidden = !buildDrawer.hidden;
     buildToggle.setAttribute("aria-expanded", String(!buildDrawer.hidden));
     buildToggle.textContent = buildDrawer.hidden ? "Build ⌄" : "Build ⌃";
   });
+  document.querySelectorAll(".drawer-close").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const d = btn.closest(".json-drawer");
+      d.hidden = true;
+      if (d.id === "jsonDrawer") openDrawer(false);
+      else {
+        buildToggle.textContent = "Build ⌄";
+        buildToggle.setAttribute("aria-expanded", "false");
+      }
+    })
+  );
   ["buildStmt", "buildWitness"].forEach((id) =>
     document.getElementById(id).addEventListener("keydown", (e) => {
       if (e.key === "Enter") document.getElementById("buildBtn").click();
@@ -1293,6 +1311,13 @@ function init() {
   });
 
   document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      const openD = [...document.querySelectorAll(".json-drawer")].find((d) => !d.hidden);
+      if (openD) {
+        openD.querySelector(".drawer-close").click();
+        return;
+      }
+    }
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || state.view !== "synthesize") return;
     if (e.key === "ArrowLeft") setStep(state.step - 1);
     else if (e.key === "ArrowRight") setStep(state.step + 1);
