@@ -1037,7 +1037,7 @@ tr.code-hi-row td {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .own-box.own-collapsed {
@@ -1086,7 +1086,7 @@ tr.code-hi-row td {
 /* ---------- configure view ---------- */
 
 .config-view {
-  margin: 4px auto 0;
+  margin: 26px auto 0;
   max-width: 880px;
 }
 
