@@ -876,10 +876,27 @@ function renderConfigure() {
         <div class="col-strips">${circuitStrips}</div>
         <p class="own-note">⇄ equality = column may appear in copy constraints.</p>`;
 
-  const sections = [
+  const sections = [];
+
+  if (circuit.generatedFrom) {
+    const steps = circuit.rows
+      .filter((r) => Object.keys(r.selectors || {}).some((s) => r.selectors[s]))
+      .map((r) => `<div class="plan-step ${gateClassForRow(r, state.derived)}">${esc(r.op || "")}</div>`)
+      .join("");
+    sections.push({
+      title: "your statement, broken into steps",
+      kind: "witness",
+      html: `
+        <p class="own-note">a proof system can only check one + or one · per row, so <code>${esc(circuit.generatedFrom)}</code> becomes:</p>
+        ${steps}
+        <p class="own-note">each line is one row of the table. Both kinds of step come from one reusable gadget — <strong>AddMulChip</strong> — which is why a chip appears in the steps below.</p>`
+    });
+  }
+
+  sections.push(
     { title: "MyCircuit — the prover's witness", kind: "witness", html: witnessBody },
     { title: "Circuit::configure() → CircuitConfig", kind: "circuit", html: circuitBody }
-  ];
+  );
 
   chips.forEach((chip) => {
     const cols = (chip.columns || []).map(esc).join(", ");

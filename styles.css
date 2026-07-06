@@ -1026,6 +1026,18 @@ tr.code-hi-row td {
   font-size: 12px;
 }
 
+.plan-step {
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--faint);
+  background: var(--panel);
+  padding: 5px 12px;
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+.plan-step.gate-add { border-left-color: var(--add); }
+.plan-step.gate-mul { border-left-color: var(--mul); }
+
 .own-note {
   margin: 8px 0 0;
   color: var(--dim);
