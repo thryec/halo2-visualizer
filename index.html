@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Halo2 Trace Inspector</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">◫</span>
+        <span class="brand-name">HALO2 TRACE INSPECTOR</span>
+      </div>
+
+      <div class="topbar-controls">
+        <label class="control">
+          <span class="micro-label">example</span>
+          <select id="exampleSelect"></select>
+        </label>
+
+        <button id="renderBtn" class="btn" type="button">Render</button>
+
+        <div class="tabs" role="tablist" aria-label="View">
+          <button class="tab" data-view="configure" role="tab" aria-selected="false" aria-controls="configView" type="button">configure</button>
+          <button class="tab active" data-view="synthesize" role="tab" aria-selected="true" aria-controls="gridScroll" type="button">synthesize</button>
+          <button class="tab" data-view="code" role="tab" aria-selected="false" aria-controls="codePane" type="button">code</button>
+        </div>
+
+        <label class="control toggle">
+          <input id="valuesToggle" type="checkbox" />
+          <span class="micro-label">values</span>
+        </label>
+
+        <button id="buildToggle" class="btn ghost" type="button" aria-expanded="false">Build ⌄</button>
+        <button id="jsonBtn" class="btn ghost" type="button" aria-expanded="false">JSON ⌄</button>
+      </div>
+    </header>
+
+    <div id="buildDrawer" class="json-drawer" hidden>
+      <div class="drawer-head">
+        <span class="micro-label">builder — write a statement, get the trace</span>
+        <span id="buildStatus" class="parse-status">supports + · ^ over private variables</span>
+      </div>
+      <div class="build-form">
+        <label class="build-field">
+          <span class="micro-label">prove</span>
+          <input id="buildStmt" value="x^3 + x*y + y = out" spellcheck="false" />
+        </label>
+        <label class="build-field">
+          <span class="micro-label">witness (optional)</span>
+          <input id="buildWitness" value="x = 2, y = 3" spellcheck="false" />
+        </label>
+        <button id="buildBtn" class="btn" type="button">Generate</button>
+      </div>
+    </div>
+
+    <div id="jsonDrawer" class="json-drawer" hidden>
+      <div class="drawer-head">
+        <span class="micro-label">circuit json — edit and press render</span>
+        <span id="parseStatus" class="parse-status">ready</span>
+      </div>
+      <textarea id="jsonInput" spellcheck="false" aria-label="Circuit JSON"></textarea>
+    </div>
+
+    <main class="layout">
+      <section class="stage">
+        <div class="stage-head">
+          <div>
+            <h1 id="circuitTitle"></h1>
+            <p id="circuitSubtitle"></p>
+          </div>
+        </div>
+
+        <p id="viewCaption" class="view-caption"></p>
+
+        <div id="playerBar" class="player-bar">
+          <button id="prevBtn" class="btn ghost" type="button" title="Previous step (←)">◀</button>
+          <button id="playBtn" class="btn" type="button" title="Play">▶ play</button>
+          <button id="nextBtn" class="btn ghost" type="button" title="Next step (→)">▶</button>
+          <button id="endBtn" class="btn ghost" type="button" title="Show full trace">⏭</button>
+          <span id="stepCounter" class="step-counter"></span>
+          <span id="stepOp" class="step-op"></span>
+        </div>
+
+        <div id="codePane" class="code-pane" role="tabpanel" aria-label="code" hidden></div>
+
+        <div id="gridScroll" class="grid-scroll" role="tabpanel" aria-label="synthesize trace">
+          <div id="gridWrap" class="grid-wrap">
+            <table id="traceGrid" class="trace-grid"></table>
+            <svg id="wireLayer" class="wire-layer" aria-hidden="true"></svg>
+          </div>
+        </div>
+
+        <div id="configView" class="config-view" role="tabpanel" aria-label="configure" hidden></div>
+
+        <div id="legend" class="legend"></div>
+      </section>
+
+      <aside class="side">
+        <section class="side-section">
+          <h2 class="micro-label">selected cell</h2>
+          <div id="cellDetail" class="cell-detail">click a cell in the trace</div>
+        </section>
+
+        <section class="side-section">
+          <h2 class="micro-label">chips · gates</h2>
+          <div id="chipsList"></div>
+        </section>
+
+        <details class="side-section">
+          <summary class="micro-label">copy constraints <span id="copyCount"></span></summary>
+          <div id="copyList" class="constraint-list"></div>
+        </details>
+
+        <details class="side-section">
+          <summary class="micro-label">instance constraints <span id="instanceCount"></span></summary>
+          <div id="instanceList" class="constraint-list"></div>
+        </details>
+      </aside>
+    </main>
+
+    <script src="./examples.js"></script>
+    <script src="./builder.js"></script>
+    <script src="./codegen.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
