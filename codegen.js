@@ -211,7 +211,7 @@ window.generateRust = function (circuit) {
     (chip.gates || []).forEach((g) => {
       if (chipCols.length < 3) return;
       const refs = exprRefs(g.constraints || []);
-      if (!refs || refs.some((r) => r.rot !== 0) || (g.constraints || []).length !== 1) return;
+      if (!refs || refs.some((r) => r.rot !== 0)) return;
       const [inA, inB, outC] = [chipCols[0], chipCols[1], chipCols[chipCols.length - 1]];
       const formula = outFormula(g.constraints[0], inA, inB);
       const region = `${methodName(g)} region`;
@@ -234,7 +234,7 @@ window.generateRust = function (circuit) {
       if (formula) {
         push(`            region.assign_advice(|| "${outC}", self.config.${ident(outC)}, 0, || ${formula})`, "chipcfg", { col: outC });
       } else {
-        push(`            let out_val = a_val; // TODO: compute per gate "${g.constraints[0]}"`, "chipcfg");
+        push(`            let out_val = a_val; // TODO: compute output for: ${(g.constraints || []).join(" ; ")}`, "chipcfg");
         push(`            region.assign_advice(|| "${outC}", self.config.${ident(outC)}, 0, || out_val)`, "chipcfg", { col: outC });
       }
       push("        })", "chipcfg");
@@ -258,7 +258,8 @@ window.generateRust = function (circuit) {
   tables.forEach((t) =>
     t.columns.forEach((c) => push(`    ${tableColVar(t, c)}: TableColumn,`, "config"))
   );
-  chips.forEach((chip) => push(`    config: ${ident(chip.name)}Config,`, "config"));
+  const chipVar = (chip) => ident(chip.name).replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+  chips.forEach((chip) => push(`    ${chipVar(chip)}: ${ident(chip.name)}Config,`, "config"));
   push("}", "config");
   push("");
   push("impl<F: PrimeField> Circuit<F> for MyCircuit<F> {", "config");
@@ -313,13 +314,13 @@ window.generateRust = function (circuit) {
   });
   chips.forEach((chip) => {
     const args = (chip.columns || []).map(ident).join(", ");
-    push(`        let config = ${ident(chip.name)}::configure(meta, ${args});`, "config");
+    push(`        let ${chipVar(chip)} = ${ident(chip.name)}::configure(meta, ${args});`, "config");
   });
   push(
     `        CircuitConfig { ${[
       ...instance.map(ident),
       ...tables.flatMap((t) => t.columns.map((c) => tableColVar(t, c))),
-      ...(chips.length ? ["config"] : [])
+      ...chips.map(chipVar)
     ].join(", ")} }`,
     "config"
   );
@@ -335,7 +336,7 @@ window.generateRust = function (circuit) {
   push("        mut layouter: impl Layouter<F>,", "synth");
   push("    ) -> Result<(), ErrorFront> {", "synth");
   chips.forEach((chip) =>
-    push(`        let chip = ${ident(chip.name)}::construct(config.config);`, "synth")
+    push(`        let ${chipVar(chip)} = ${ident(chip.name)}::construct(config.${chipVar(chip)});`, "synth")
   );
   push("");
 
@@ -351,7 +352,7 @@ window.generateRust = function (circuit) {
   loadRows.forEach((r) => {
     Object.values(r.cells).forEach((cell) => {
       const v = ident(cell.label);
-      push(`        let ${v} = chip.unconstrained(&mut layouter, self.${v})?;   // row: ${r.op || r.id}`, "synth", { row: r.id });
+      push(`        let ${v} = ${chips.length ? chipVar(chips[0]) : "chip"}.unconstrained(&mut layouter, self.${v})?;   // row: ${r.op || r.id}`, "synth", { row: r.id });
     });
   });
 
@@ -379,7 +380,7 @@ window.generateRust = function (circuit) {
       return v ? `${v}.clone()` : `/* ${r.cells?.[c]?.label ?? "?"}: assigned fresh in region */`;
     });
     push(
-      `        let ${outVar} = chip.${methodName(hit.gate)}(&mut layouter, ${args.join(", ")})?;   // ${r.op || r.id}`,
+      `        let ${outVar} = ${chipVar(hit.chip)}.${methodName(hit.gate)}(&mut layouter, ${args.join(", ")})?;   // ${r.op || r.id}`,
       "synth",
       { row: r.id }
     );

@@ -175,6 +175,92 @@ window.HALO2_EXAMPLES = [
     }
   },
   {
+    id: "iszero-multichip",
+    label: "isZero(x·y) — two chips, shared columns",
+    circuit: {
+      title: "isZero(x · y) — two chips share a, b, c",
+      subtitle:
+        "AddMulChip computes x·y, IsZeroChip tests it — both borrow the same three advice columns, each owns its own selector and gates. isZero needs an auxiliary witness: the inverse (mod 17 here).",
+      modulus: "17",
+      columns: {
+        advice: ["a", "b", "c"],
+        selectors: ["q_mul", "q_iz"],
+        instance: ["instance"],
+        fixed: []
+      },
+      equality: ["a", "b", "c", "instance"],
+      chips: [
+        {
+          name: "AddMulChip",
+          columns: ["a", "b", "c"],
+          gates: [{ name: "mul gate", selector: "q_mul", constraints: ["a * b - c"] }]
+        },
+        {
+          name: "IsZeroChip",
+          columns: ["a", "b", "c"],
+          gates: [
+            {
+              name: "is zero gate",
+              selector: "q_iz",
+              constraints: ["a * c", "1 - c - a * b"]
+            }
+          ]
+        }
+      ],
+      rows: [
+        {
+          id: "r0",
+          region: "unconstrained",
+          op: "load private x",
+          cells: { a: { label: "x", value: "3" } },
+          selectors: {}
+        },
+        {
+          id: "r1",
+          region: "unconstrained",
+          op: "load private y",
+          cells: { a: { label: "y", value: "0" } },
+          selectors: {}
+        },
+        {
+          id: "r2",
+          region: "mul region",
+          op: "p = x · y",
+          cells: {
+            a: { label: "x", value: "3" },
+            b: { label: "y", value: "0" },
+            c: { label: "p", value: "0" }
+          },
+          selectors: { q_mul: 1 }
+        },
+        {
+          id: "r3",
+          region: "is zero region",
+          op: "out = isZero(p)",
+          cells: {
+            a: { label: "p", value: "0" },
+            b: { label: "p_inv", value: "0" },
+            c: { label: "out", value: "1" }
+          },
+          selectors: { q_iz: 1 }
+        },
+        {
+          id: "i0",
+          region: "instance",
+          op: "public out",
+          cells: { instance: { label: "out", value: "1" } },
+          selectors: {}
+        }
+      ],
+      copyConstraints: [
+        ["r0.a", "r2.a"],
+        ["r1.a", "r2.b"],
+        ["r2.c", "r3.a"]
+      ],
+      instanceConstraints: [["r3.c", "i0.instance"]]
+    }
+  },
+  {
     id: "range-add",
     label: "x + y = z, range-checked (lookup)",
     circuit: {
