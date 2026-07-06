@@ -33,8 +33,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 button,
@@ -52,7 +52,7 @@ input {
 }
 
 .micro-label {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--dim);
@@ -397,7 +397,7 @@ body.no-circuit .layout {
   min-width: 0;
   max-height: calc(100vh - 48px);
   overflow-y: auto;
-  padding: 14px 18px;
+  padding: 18px 22px;
 }
 
 .pane + .pane {
@@ -459,14 +459,14 @@ body.no-circuit .page-head {
 
 .step-counter {
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   white-space: nowrap;
 }
 
 .step-op {
   color: var(--selector);
-  font-size: 12px;
+  font-size: 13px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -521,9 +521,9 @@ body.no-circuit .page-head {
 }
 
 .trace-grid thead .name-row th {
-  padding: 5px 8px;
+  padding: 7px 10px;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 13px;
   background: var(--panel);
   text-align: center;
 }
@@ -550,7 +550,7 @@ th.group-fixed { color: var(--fixed); border-bottom: 1px solid var(--fixed); }
 
 .row-head .region {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--dim);
   letter-spacing: 0.06em;
   white-space: nowrap;
@@ -560,7 +560,7 @@ th.group-fixed { color: var(--fixed); border-bottom: 1px solid var(--fixed); }
 
 .row-head .op {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -585,8 +585,8 @@ th.group-fixed { color: var(--fixed); border-bottom: 1px solid var(--fixed); }
 /* cells */
 
 .cell {
-  min-width: 78px;
-  height: 40px;
+  min-width: 82px;
+  height: 46px;
   text-align: center;
   vertical-align: middle;
   cursor: default;
@@ -746,7 +746,7 @@ tr.row-fail td.cell:not(.sel-on) {
 
 .check-banner {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   white-space: nowrap;
 }
@@ -799,13 +799,13 @@ tr.row-fail td.cell:not(.sel-on) {
 
 .mini-table {
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .mini-table th,
 .mini-table td {
   border: 1px solid var(--line);
-  padding: 2px 12px;
+  padding: 4px 14px;
   text-align: center;
 }
 
@@ -837,7 +837,7 @@ tr.row-fail td.cell:not(.sel-on) {
 
 .gate-c {
   display: inline-block;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .pair-fail {
@@ -954,9 +954,9 @@ tr.row-fail td.cell:not(.sel-on) {
 .legend-swatch.sw-synth { background: var(--add); }
 
 .code-lines {
-  padding: 8px 0;
-  font-size: 12.5px;
-  line-height: 1.55;
+  padding: 10px 0;
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .code-line {
@@ -1008,10 +1008,10 @@ tr.code-hi-row td {
 .own-box.t-chip { border-top-color: var(--selector); }
 
 .own-head {
-  padding: 7px 12px;
+  padding: 9px 13px;
   border-bottom: 1px solid var(--line);
   font-weight: 700;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .own-body {
@@ -1031,10 +1031,10 @@ tr.code-hi-row td {
   display: inline-block;
   border: 1px solid var(--line-strong);
   border-radius: 2px;
-  padding: 2px 8px;
-  margin: 0 4px 4px 0;
+  padding: 3px 9px;
+  margin: 0 5px 5px 0;
   color: var(--advice);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .plan-step {
@@ -1050,9 +1050,9 @@ tr.code-hi-row td {
 .plan-step.gate-mul { border-left-color: var(--mul); }
 
 .own-note {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
   max-width: 70ch;
 }
 
@@ -1091,7 +1091,7 @@ tr.code-hi-row td {
 }
 
 .own-box + .own-box {
-  margin-top: 8px;
+  margin-top: 12px;
 }
 
 .own-owned {
@@ -1201,7 +1201,7 @@ tr.code-hi-row td {
 /* ---------- side panel ---------- */
 
 .side-section {
-  margin-bottom: 20px;
+  margin-bottom: 26px;
 }
 
 .side-section > h2 {
@@ -1228,8 +1228,8 @@ tr.code-hi-row td {
 }
 
 .chip-card .gate-line {
-  margin-top: 6px;
-  font-size: 11px;
+  margin-top: 8px;
+  font-size: 12px;
   color: var(--text);
   display: flex;
   align-items: baseline;
@@ -1248,12 +1248,12 @@ tr.code-hi-row td {
 .constraint {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   border: 1px solid transparent;
   background: none;
   text-align: left;
-  padding: 3px 6px;
-  font-size: 11px;
+  padding: 5px 7px;
+  font-size: 12px;
   color: var(--text);
   cursor: pointer;
   border-radius: 2px;
@@ -1282,8 +1282,8 @@ tr.code-hi-row td {
 .cell-detail {
   border: 1px solid var(--line);
   background: var(--panel);
-  padding: 10px;
-  font-size: 12px;
+  padding: 12px;
+  font-size: 13px;
   color: var(--dim);
   min-height: 60px;
 }
@@ -1294,7 +1294,7 @@ tr.code-hi-row td {
 }
 
 .cell-detail td {
-  padding: 2px 0;
+  padding: 4px 0;
   vertical-align: top;
 }
 

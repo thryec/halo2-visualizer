@@ -259,6 +259,99 @@ window.HALO2_EXAMPLES = [
     }
   },
   {
+    id: "vanilla-plonk",
+    label: "one gate, four ops (vanilla PLONK)",
+    blurb: "fixed coefficient columns turn one gate into add, mul, sub, const — production style",
+    circuit: {
+      title: "one gate, four ops — vanilla PLONK arithmetization",
+      subtitle:
+        "Production circuits use one arithmetic gate: qa·a + qb·b + qm·a·b + qc·c + k = 0. The fixed coefficient columns choose the operation per row — AddMulChip's two gates are special cases of this.",
+      columns: {
+        advice: ["a", "b", "c"],
+        selectors: ["q"],
+        instance: [],
+        fixed: ["qa", "qb", "qm", "qc", "k"]
+      },
+      equality: [],
+      chips: [],
+      gates: [
+        {
+          name: "plonk gate",
+          selector: "q",
+          constraints: ["qa*a + qb*b + qm*a*b + qc*c + k"]
+        }
+      ],
+      rows: [
+        {
+          id: "r0",
+          region: "region",
+          op: "add: qa=qb=1, qc=−1",
+          cells: {
+            a: { label: "2", value: "2" },
+            b: { label: "3", value: "3" },
+            c: { label: "5", value: "5" },
+            qa: { label: "1", value: "1" },
+            qb: { label: "1", value: "1" },
+            qm: { label: "0", value: "0" },
+            qc: { label: "-1", value: "-1" },
+            k: { label: "0", value: "0" }
+          },
+          selectors: { q: 1 }
+        },
+        {
+          id: "r1",
+          region: "region",
+          op: "mul: qm=1, qc=−1",
+          cells: {
+            a: { label: "2", value: "2" },
+            b: { label: "3", value: "3" },
+            c: { label: "6", value: "6" },
+            qa: { label: "0", value: "0" },
+            qb: { label: "0", value: "0" },
+            qm: { label: "1", value: "1" },
+            qc: { label: "-1", value: "-1" },
+            k: { label: "0", value: "0" }
+          },
+          selectors: { q: 1 }
+        },
+        {
+          id: "r2",
+          region: "region",
+          op: "sub: qa=1, qb=−1, qc=−1",
+          cells: {
+            a: { label: "7", value: "7" },
+            b: { label: "3", value: "3" },
+            c: { label: "4", value: "4" },
+            qa: { label: "1", value: "1" },
+            qb: { label: "-1", value: "-1" },
+            qm: { label: "0", value: "0" },
+            qc: { label: "-1", value: "-1" },
+            k: { label: "0", value: "0" }
+          },
+          selectors: { q: 1 }
+        },
+        {
+          id: "r3",
+          region: "region",
+          op: "add constant: qa=1, k=10, qc=−1",
+          cells: {
+            a: { label: "5", value: "5" },
+            b: { label: "0", value: "0" },
+            c: { label: "15", value: "15" },
+            qa: { label: "1", value: "1" },
+            qb: { label: "0", value: "0" },
+            qm: { label: "0", value: "0" },
+            qc: { label: "-1", value: "-1" },
+            k: { label: "10", value: "10" }
+          },
+          selectors: { q: 1 }
+        }
+      ],
+      copyConstraints: [],
+      instanceConstraints: []
+    }
+  },
+  {
     id: "range-add",
     label: "x + y = z, range-checked (lookup)",
     blurb: "lookup argument pins every value into a 16-row table",
