@@ -1,0 +1,154 @@
+{
+  "chips": [],
+  "columns": {
+    "advice": [
+      "a0",
+      "a1",
+      "a2"
+    ],
+    "fixed": [],
+    "instance": [
+      "i0"
+    ],
+    "selectors": [
+      "q0",
+      "q1"
+    ]
+  },
+  "copyConstraints": [],
+  "dumperNotes": "copy constraints not exposed by halo2 public API (permutation assembly is private); region names unavailable (dev::Region is private)",
+  "equality": [
+    "a0",
+    "a1",
+    "a2",
+    "i0"
+  ],
+  "gates": [
+    {
+      "constraints": [
+        "a0 + a1 + -(a2)"
+      ],
+      "name": "add gate",
+      "selector": "q0"
+    },
+    {
+      "constraints": [
+        "a0 * a1 + -(a2)"
+      ],
+      "name": "mul gate",
+      "selector": "q1"
+    }
+  ],
+  "instanceConstraints": [],
+  "lookups": [],
+  "modulus": "21888242871839275222246405745257275088548364400416034343698204186575808495617",
+  "rows": [
+    {
+      "cells": {
+        "a0": {
+          "label": "2",
+          "value": "2"
+        },
+        "i0": {
+          "label": "34",
+          "value": "34"
+        }
+      },
+      "id": "r0",
+      "op": "",
+      "region": "",
+      "selectors": {}
+    },
+    {
+      "cells": {
+        "a0": {
+          "label": "2",
+          "value": "2"
+        },
+        "a1": {
+          "label": "2",
+          "value": "2"
+        },
+        "a2": {
+          "label": "4",
+          "value": "4"
+        }
+      },
+      "id": "r1",
+      "op": "",
+      "region": "",
+      "selectors": {
+        "q1": 1
+      }
+    },
+    {
+      "cells": {
+        "a0": {
+          "label": "4",
+          "value": "4"
+        },
+        "a1": {
+          "label": "4",
+          "value": "4"
+        },
+        "a2": {
+          "label": "16",
+          "value": "16"
+        }
+      },
+      "id": "r2",
+      "op": "",
+      "region": "",
+      "selectors": {
+        "q1": 1
+      }
+    },
+    {
+      "cells": {
+        "a0": {
+          "label": "16",
+          "value": "16"
+        },
+        "a1": {
+          "label": "2",
+          "value": "2"
+        },
+        "a2": {
+          "label": "32",
+          "value": "32"
+        }
+      },
+      "id": "r3",
+      "op": "",
+      "region": "",
+      "selectors": {
+        "q1": 1
+      }
+    },
+    {
+      "cells": {
+        "a0": {
+          "label": "32",
+          "value": "32"
+        },
+        "a1": {
+          "label": "2",
+          "value": "2"
+        },
+        "a2": {
+          "label": "34",
+          "value": "34"
+        }
+      },
+      "id": "r4",
+      "op": "",
+      "region": "",
+      "selectors": {
+        "q0": 1
+      }
+    }
+  ],
+  "subtitle": "structure from a fresh ConstraintSystem; values from MockProver",
+  "tables": [],
+  "title": "dumped circuit"
+}

@@ -1,0 +1,80 @@
+{
+  "chips": [],
+  "columns": {
+    "advice": [
+      "a0",
+      "a1",
+      "a2"
+    ],
+    "fixed": [],
+    "instance": [
+      "i0"
+    ],
+    "selectors": [
+      "q0"
+    ]
+  },
+  "copyConstraints": [],
+  "dumperNotes": "copy constraints not exposed by halo2 public API (permutation assembly is private); region names unavailable (dev::Region is private)",
+  "equality": [
+    "i0",
+    "a0",
+    "a2"
+  ],
+  "gates": [
+    {
+      "constraints": [
+        "a0 * a2",
+        "1 + -(a2) + -(a0 * a1)"
+      ],
+      "name": "is zero gate",
+      "selector": "q0"
+    }
+  ],
+  "instanceConstraints": [],
+  "lookups": [],
+  "modulus": "21888242871839275222246405745257275088548364400416034343698204186575808495617",
+  "rows": [
+    {
+      "cells": {
+        "a0": {
+          "label": "0",
+          "value": "0"
+        },
+        "i0": {
+          "label": "1",
+          "value": "1"
+        }
+      },
+      "id": "r0",
+      "op": "",
+      "region": "",
+      "selectors": {}
+    },
+    {
+      "cells": {
+        "a0": {
+          "label": "0",
+          "value": "0"
+        },
+        "a1": {
+          "label": "0",
+          "value": "0"
+        },
+        "a2": {
+          "label": "1",
+          "value": "1"
+        }
+      },
+      "id": "r1",
+      "op": "",
+      "region": "",
+      "selectors": {
+        "q0": 1
+      }
+    }
+  ],
+  "subtitle": "structure from a fresh ConstraintSystem; values from MockProver",
+  "tables": [],
+  "title": "dumped circuit"
+}

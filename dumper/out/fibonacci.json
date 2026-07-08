@@ -1,0 +1,112 @@
+{
+  "chips": [],
+  "columns": {
+    "advice": [
+      "a0"
+    ],
+    "fixed": [
+      "f0"
+    ],
+    "instance": [],
+    "selectors": [
+      "q0"
+    ]
+  },
+  "copyConstraints": [],
+  "dumperNotes": "copy constraints not exposed by halo2 public API (permutation assembly is private); region names unavailable (dev::Region is private)",
+  "equality": [
+    "a0",
+    "f0"
+  ],
+  "gates": [
+    {
+      "constraints": [
+        "a0 + a0@1 + -(a0@2)"
+      ],
+      "name": "add gate",
+      "selector": "q0"
+    }
+  ],
+  "instanceConstraints": [],
+  "lookups": [],
+  "modulus": "21888242871839275222246405745257275088548364400416034343698204186575808495617",
+  "rows": [
+    {
+      "cells": {
+        "a0": {
+          "label": "1",
+          "value": "1"
+        },
+        "f0": {
+          "label": "1",
+          "value": "1"
+        }
+      },
+      "id": "r0",
+      "op": "",
+      "region": "",
+      "selectors": {
+        "q0": 1
+      }
+    },
+    {
+      "cells": {
+        "a0": {
+          "label": "1",
+          "value": "1"
+        },
+        "f0": {
+          "label": "1",
+          "value": "1"
+        }
+      },
+      "id": "r1",
+      "op": "",
+      "region": "",
+      "selectors": {
+        "q0": 1
+      }
+    },
+    {
+      "cells": {
+        "a0": {
+          "label": "2",
+          "value": "2"
+        }
+      },
+      "id": "r2",
+      "op": "",
+      "region": "",
+      "selectors": {
+        "q0": 1
+      }
+    },
+    {
+      "cells": {
+        "a0": {
+          "label": "3",
+          "value": "3"
+        }
+      },
+      "id": "r3",
+      "op": "",
+      "region": "",
+      "selectors": {}
+    },
+    {
+      "cells": {
+        "a0": {
+          "label": "5",
+          "value": "5"
+        }
+      },
+      "id": "r4",
+      "op": "",
+      "region": "",
+      "selectors": {}
+    }
+  ],
+  "subtitle": "structure from a fresh ConstraintSystem; values from MockProver",
+  "tables": [],
+  "title": "dumped circuit"
+}
