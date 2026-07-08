@@ -1,0 +1,12 @@
+[
+  { "circuit": "week5-p3", "case": "honest" },
+  { "circuit": "week5-p3", "case": "mut-r1c", "cell": "r1.c", "value": "5" },
+  { "circuit": "fibonacci", "case": "honest" },
+  { "circuit": "fibonacci", "case": "mut-r2fib", "cell": "r2.fib", "value": "9" },
+  { "circuit": "iszero-multichip", "case": "honest" },
+  { "circuit": "iszero-multichip", "case": "mut-r3c", "cell": "r3.c", "value": "0" },
+  { "circuit": "vanilla-plonk", "case": "honest" },
+  { "circuit": "vanilla-plonk", "case": "mut-r1qm", "cell": "r1.qm", "value": "0" },
+  { "circuit": "range-add", "case": "honest" },
+  { "circuit": "range-add", "case": "mut-r0z", "cell": "r0.z", "value": "99" }
+]
