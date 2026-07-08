@@ -1077,6 +1077,90 @@ function renderAll() {
   renderLegend();
   markPairFails();
   restoreSelectionMarks();
+  renderWitnessBar();
+  if (els.propagateBtn) els.propagateBtn.disabled = state.practice;
+}
+
+/* ---------- live witness bar (builder-generated circuits) ---------- */
+
+function witnessBarVars() {
+  const circuit = state.circuit;
+  const src = circuit.witnessSource || "";
+  if (src.trim()) {
+    return src
+      .split(",")
+      .map((p) => {
+        const m = p.trim().match(/^([A-Za-z_]\w*)\s*=\s*(-?\d+)$/);
+        return m ? [m[1], m[2]] : null;
+      })
+      .filter(Boolean);
+  }
+  const names = [];
+  (circuit.rows || []).forEach((row) => {
+    if (typeof row.op === "string" && row.op.startsWith("load private ")) {
+      const name = row.op.slice("load private ".length).trim();
+      if (name && !names.includes(name)) names.push(name);
+    }
+  });
+  return names.map((n) => [n, ""]);
+}
+
+function renderWitnessBar() {
+  const bar = document.getElementById("witnessBar");
+  if (!bar) return;
+  if (!state.circuit?.generatedFrom || state.practice) {
+    bar.hidden = true;
+    return;
+  }
+  const vars = witnessBarVars();
+  const key = vars.map((v) => v[0]).join(",");
+  // don't re-render (losing focus) during a rebuild we ourselves triggered
+  if (!bar.hidden && bar.dataset.vars === key && bar.contains(document.activeElement)) return;
+
+  bar.hidden = false;
+  bar.dataset.vars = key;
+  bar.innerHTML =
+    `<span class="micro-label">witness</span>` +
+    vars
+      .map(
+        ([n, v]) =>
+          `<label>${esc(n)} <input data-wvar="${esc(n)}" value="${esc(v)}" inputmode="numeric" /></label>`
+      )
+      .join("");
+}
+
+function rebuildFromWitnessBar() {
+  const bar = document.getElementById("witnessBar");
+  if (!bar || !state.circuit?.generatedFrom) return;
+  const parts = [];
+  for (const inp of bar.querySelectorAll("[data-wvar]")) {
+    const v = inp.value.trim();
+    if (!/^-?\d+$/.test(v)) return; // wait until every field is valid
+    parts.push(`${inp.dataset.wvar} = ${v}`);
+  }
+  if (!parts.length) return;
+
+  let circuit;
+  try {
+    circuit = window.buildCircuit(state.circuit.generatedFrom, parts.join(", "));
+  } catch (e) {
+    let err = bar.querySelector(".parse-status.error");
+    if (!err) {
+      err = document.createElement("span");
+      err.className = "parse-status error";
+      bar.appendChild(err);
+    }
+    err.textContent = e.message;
+    return;
+  }
+  bar.querySelector(".parse-status.error")?.remove();
+  state.circuit = circuit;
+  state.derived = derive(circuit);
+  state.check = window.HALO2_EVAL.checkCircuit(circuit, state.derived);
+  state.selection = null;
+  state.step = Math.min(state.step, circuit.rows.length - 1);
+  els.jsonInput.value = JSON.stringify(circuit, null, 2);
+  renderAll();
 }
 
 /* ---------- practice mode ---------- */
@@ -1564,6 +1648,29 @@ function init() {
     setStep(state.circuit.rows.length - 1);
   });
   els.playBtn.addEventListener("click", togglePlay);
+
+  els.propagateBtn = document.getElementById("propagateBtn");
+  els.propagateBtn.addEventListener("click", () => {
+    if (state.practice || !state.circuit) return;
+    const n = window.HALO2_EVAL.propagate(state.circuit, state.derived);
+    state.check = window.HALO2_EVAL.checkCircuit(state.circuit, state.derived);
+    els.jsonInput.value = JSON.stringify(state.circuit, null, 2);
+    renderAll();
+    const btn = els.propagateBtn;
+    btn.textContent = `↻ ${n} filled`;
+    clearTimeout(btn._flashTimer);
+    btn._flashTimer = setTimeout(() => {
+      btn.textContent = "↻ propagate";
+    }, 1500);
+  });
+
+  const witnessBar = document.getElementById("witnessBar");
+  let witnessTimer = null;
+  witnessBar.addEventListener("input", (e) => {
+    if (!e.target.matches("[data-wvar]")) return;
+    clearTimeout(witnessTimer);
+    witnessTimer = setTimeout(rebuildFromWitnessBar, 180);
+  });
 
   const buildDrawer = document.getElementById("buildDrawer");
   const buildToggle = document.getElementById("buildToggle");

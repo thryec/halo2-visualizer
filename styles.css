@@ -197,6 +197,25 @@ select {
   color: var(--add);
 }
 
+.witness-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.witness-bar input {
+  width: 80px;
+  background: #0b0f13;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 3px 7px;
+  color: var(--text);
+}
+.witness-bar[hidden] {
+  display: none;
+}
+
 #jsonInput {
   width: 100%;
   flex: 1;

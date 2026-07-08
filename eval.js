@@ -209,5 +209,145 @@
     return result;
   }
 
-  window.HALO2_EVAL = { parseExpr, refsOf, evalAt, checkCircuit };
+  // modular inverse via extended Euclid
+  function modinv(a, m) {
+    a = ((a % m) + m) % m;
+    let [oldR, r] = [a, m];
+    let [oldS, s] = [1n, 0n];
+    while (r !== 0n) {
+      const q = oldR / r;
+      [oldR, r] = [r, oldR - q * r];
+      [oldS, s] = [s, oldS - q * s];
+    }
+    if (oldR !== 1n) return null; // slope not invertible mod m
+    return ((oldS % m) + m) % m;
+  }
+
+  /* Fill blank cells whose value is forced by the constraints.
+   * Repeats passes until no assignment is made (cap 200). Returns cells filled. */
+  function propagate(circuit, derived) {
+    const mod = circuit.modulus ? BigInt(circuit.modulus) : null;
+    const norm = (v) => (mod ? ((v % mod) + mod) % mod : v);
+    const rows = circuit.rows || [];
+
+    const valueAt = (col, i) => {
+      if (i < 0 || i >= rows.length) return undefined;
+      const raw = rows[i].cells?.[col]?.value;
+      if (raw === undefined) return undefined;
+      try {
+        return BigInt(raw);
+      } catch {
+        return undefined;
+      }
+    };
+
+    // fill a blank cell only; never overwrite an existing value
+    const setCell = (col, i, v) => {
+      if (i < 0 || i >= rows.length) return false;
+      const row = rows[i];
+      if (!row.cells) row.cells = {};
+      const cell = row.cells[col];
+      if (cell === undefined) {
+        row.cells[col] = { label: v.toString(), value: v.toString() };
+        return true;
+      }
+      if (cell.value !== undefined) return false;
+      cell.value = v.toString();
+      if (!cell.label) cell.label = v.toString();
+      return true;
+    };
+
+    const parseRef = (ref) => {
+      const i = ref.indexOf(".");
+      return { rowIdx: derived.rowIndex.get(ref.slice(0, i)), col: ref.slice(i + 1) };
+    };
+
+    const gates = [...(circuit.gates || []), ...(circuit.chips || []).flatMap((c) => c.gates || [])];
+    const gateAsts = gates.map((gate) => {
+      if (gate.unsupported) return null;
+      try {
+        return (gate.constraints || []).map(parseExpr);
+      } catch {
+        return null;
+      }
+    });
+
+    let total = 0;
+    for (let pass = 0; pass < 200; pass++) {
+      let filled = 0;
+
+      // copy + instance constraints: one endpoint known -> set the other
+      const doPair = (pair) => {
+        const [x, y] = pair.map(parseRef);
+        if (x.rowIdx === undefined || y.rowIdx === undefined) return;
+        const vx = valueAt(x.col, x.rowIdx);
+        const vy = valueAt(y.col, y.rowIdx);
+        if (vx !== undefined && vy === undefined) {
+          if (setCell(y.col, y.rowIdx, vx)) filled++;
+        } else if (vy !== undefined && vx === undefined) {
+          if (setCell(x.col, x.rowIdx, vy)) filled++;
+        }
+      };
+      (circuit.copyConstraints || []).forEach(doPair);
+      (circuit.instanceConstraints || []).forEach(doPair);
+
+      // gates: solve a single linear unknown per constraint row
+      gates.forEach((gate, gi) => {
+        const asts = gateAsts[gi];
+        if (!asts) return;
+        rows.forEach((row, i) => {
+          if (!row.selectors?.[gate.selector]) return;
+          asts.forEach((ast) => {
+            let unknown = null;
+            let count = 0;
+            let outOfRange = false;
+            const seen = new Set();
+            for (const rf of refsOf(ast)) {
+              const absRow = i + rf.rot;
+              if (absRow < 0 || absRow >= rows.length) {
+                outOfRange = true;
+                break;
+              }
+              const key = `${rf.col}@${absRow}`;
+              if (seen.has(key)) continue;
+              seen.add(key);
+              if (valueAt(rf.col, absRow) === undefined) {
+                count++;
+                unknown = { col: rf.col, absRow };
+              }
+            }
+            if (outOfRange || count !== 1) return;
+
+            const evalWith = (u) =>
+              evalAt(ast, i, (col, ri) =>
+                col === unknown.col && ri === unknown.absRow ? u : valueAt(col, ri)
+              );
+            const f0 = evalWith(0n);
+            const f1 = evalWith(1n);
+            const f2 = evalWith(2n);
+            if (f0 === undefined || f1 === undefined || f2 === undefined) return;
+            const slope = f1 - f0;
+            if (f2 - f1 !== slope || slope === 0n) return; // nonlinear or free
+
+            let u;
+            if (mod) {
+              const inv = modinv(slope, mod);
+              if (inv === null) return; // slope shares a factor with the modulus
+              u = norm(-f0 * inv);
+            } else {
+              if (-f0 % slope !== 0n) return; // no exact integer solution
+              u = -f0 / slope;
+            }
+            if (setCell(unknown.col, unknown.absRow, u)) filled++;
+          });
+        });
+      });
+
+      total += filled;
+      if (filled === 0) break;
+    }
+    return total;
+  }
+
+  window.HALO2_EVAL = { parseExpr, refsOf, evalAt, checkCircuit, propagate };
 })();
