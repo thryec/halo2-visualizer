@@ -148,6 +148,7 @@ function validate(circuit) {
   };
 
   (circuit.gates || []).forEach((g, gi) => {
+    if (g.unsupported) return;
     const where = `gates[${gi}] (${g.name || g.selector})`;
     if (!selectorNames.has(g.selector)) errors.push(`${where}: unknown selector "${g.selector}"`);
     if (!Array.isArray(g.constraints) || !g.constraints.length)
@@ -157,6 +158,7 @@ function validate(circuit) {
 
   (circuit.chips || []).forEach((chip, ci) =>
     (chip.gates || []).forEach((g, gi) => {
+      if (g.unsupported) return;
       const where = `chips[${ci}].gates[${gi}] (${g.name || g.selector})`;
       if (!selectorNames.has(g.selector)) errors.push(`${where}: unknown selector "${g.selector}"`);
       if (!Array.isArray(g.constraints) || !g.constraints.length)

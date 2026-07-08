@@ -128,6 +128,7 @@
 
     // gates
     [...(circuit.gates || []), ...(circuit.chips || []).flatMap((c) => c.gates || [])].forEach((gate) => {
+      if (gate.unsupported) return;
       let asts;
       try {
         asts = (gate.constraints || []).map(parseExpr);
