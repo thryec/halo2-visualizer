@@ -148,7 +148,7 @@
       }
     }
   ],
-  "subtitle": "structure from a fresh ConstraintSystem; values from MockProver",
+  "subtitle": "dumped from the real halo2 circuit via MockProver",
   "tables": [],
-  "title": "dumped circuit"
+  "title": "a^5 + a = b (week5 lib_3, dumped)"
 }

@@ -362,11 +362,25 @@ mod addmul {
 }
 
 fn write_dump(name: &str, json: String) {
+    let json = retitle(name, json);
     let dir = std::path::Path::new("out");
     std::fs::create_dir_all(dir).expect("create out/");
     let path = dir.join(format!("{name}.json"));
     std::fs::write(&path, json).expect("write json");
     println!("wrote {}", path.display());
+}
+
+fn retitle(name: &str, json: String) -> String {
+    let (title, subtitle) = match name {
+        "fibonacci" => ("fibonacci (week3, dumped)", "dumped from the real halo2 circuit via MockProver"),
+        "iszero" => ("isZero (week5 lib_2, dumped)", "dumped from the real halo2 circuit via MockProver"),
+        "addmul" => ("a^5 + a = b (week5 lib_3, dumped)", "dumped from the real halo2 circuit via MockProver"),
+        _ => return json,
+    };
+    let mut v: serde_json::Value = serde_json::from_str(&json).expect("valid dump json");
+    v["title"] = serde_json::Value::String(title.to_string());
+    v["subtitle"] = serde_json::Value::String(subtitle.to_string());
+    serde_json::to_string_pretty(&v).expect("serialize")
 }
 
 fn main() {

@@ -74,7 +74,7 @@
       }
     }
   ],
-  "subtitle": "structure from a fresh ConstraintSystem; values from MockProver",
+  "subtitle": "dumped from the real halo2 circuit via MockProver",
   "tables": [],
-  "title": "dumped circuit"
+  "title": "isZero (week5 lib_2, dumped)"
 }
