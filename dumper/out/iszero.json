@@ -2,33 +2,33 @@
   "chips": [],
   "columns": {
     "advice": [
-      "a0",
-      "a1",
-      "a2"
+      "x",
+      "x_inv",
+      "out"
     ],
     "fixed": [],
     "instance": [
-      "i0"
+      "instance"
     ],
     "selectors": [
-      "q0"
+      "q"
     ]
   },
   "copyConstraints": [],
   "dumperNotes": "copy constraints not exposed by halo2 public API (permutation assembly is private); region names unavailable (dev::Region is private)",
   "equality": [
-    "i0",
-    "a0",
-    "a2"
+    "instance",
+    "x",
+    "out"
   ],
   "gates": [
     {
       "constraints": [
-        "a0 * a2",
-        "1 + -(a2) + -(a0 * a1)"
+        "x * out",
+        "1 + -(out) + -(x * x_inv)"
       ],
       "name": "is zero gate",
-      "selector": "q0"
+      "selector": "q"
     }
   ],
   "instanceConstraints": [],
@@ -37,13 +37,13 @@
   "rows": [
     {
       "cells": {
-        "a0": {
-          "label": "0",
-          "value": "0"
-        },
-        "i0": {
+        "instance": {
           "label": "1",
           "value": "1"
+        },
+        "x": {
+          "label": "0",
+          "value": "0"
         }
       },
       "id": "r0",
@@ -53,24 +53,24 @@
     },
     {
       "cells": {
-        "a0": {
-          "label": "0",
-          "value": "0"
-        },
-        "a1": {
-          "label": "0",
-          "value": "0"
-        },
-        "a2": {
+        "out": {
           "label": "1",
           "value": "1"
+        },
+        "x": {
+          "label": "0",
+          "value": "0"
+        },
+        "x_inv": {
+          "label": "0",
+          "value": "0"
         }
       },
       "id": "r1",
       "op": "",
       "region": "",
       "selectors": {
-        "q0": 1
+        "q": 1
       }
     }
   ],

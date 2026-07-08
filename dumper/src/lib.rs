@@ -10,8 +10,95 @@ use halo2_proofs::dev::{CellValue, InstanceValue, MockProver};
 use halo2_proofs::plonk::{Any, Circuit, ConstraintSystem, Expression};
 use serde_json::{json, Map, Value};
 
-/// Dump `circuit` (already known to verify) to a pretty JSON string.
+/// Human-readable column names, indexed by column creation order per kind.
+/// Empty / missing / invalid entries fall back to positional names (`a0`, `f0`, ...).
+#[derive(Default)]
+pub struct ColumnNames {
+    pub advice: Vec<String>,
+    pub fixed: Vec<String>,
+    pub instance: Vec<String>,
+    pub selectors: Vec<String>,
+}
+
+/// True when `s` satisfies the app's identifier rule `[A-Za-z_]\w*` (ASCII).
+fn valid_ident(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// Resolved column names (positional fallback baked in), passed to every formatter
+/// so labels stay identical across columns, cells, gates, lookups and equality.
+struct Naming {
+    advice: Vec<String>,
+    fixed: Vec<String>,
+    instance: Vec<String>,
+    selectors: Vec<String>,
+}
+
+impl Naming {
+    /// Build from user names + column counts, validating and applying positional fallback.
+    fn resolve(names: &ColumnNames, n_advice: usize, n_fixed: usize, n_instance: usize, n_selectors: usize) -> Self {
+        fn pick(names: &[String], i: usize, prefix: char) -> String {
+            match names.get(i) {
+                Some(n) if valid_ident(n) => n.clone(),
+                _ => format!("{prefix}{i}"),
+            }
+        }
+        Naming {
+            advice: (0..n_advice).map(|i| pick(&names.advice, i, 'a')).collect(),
+            fixed: (0..n_fixed).map(|i| pick(&names.fixed, i, 'f')).collect(),
+            instance: (0..n_instance).map(|i| pick(&names.instance, i, 'i')).collect(),
+            selectors: (0..n_selectors).map(|i| pick(&names.selectors, i, 'q')).collect(),
+        }
+    }
+
+    fn advice_name(&self, i: usize) -> String {
+        self.advice.get(i).cloned().unwrap_or_else(|| format!("a{i}"))
+    }
+    fn fixed_name(&self, i: usize) -> String {
+        self.fixed.get(i).cloned().unwrap_or_else(|| format!("f{i}"))
+    }
+    fn instance_name(&self, i: usize) -> String {
+        self.instance.get(i).cloned().unwrap_or_else(|| format!("i{i}"))
+    }
+    fn selector_name(&self, i: usize) -> String {
+        self.selectors.get(i).cloned().unwrap_or_else(|| format!("q{i}"))
+    }
+
+    /// Name of a permutation-enabled column, dispatched by column type.
+    fn column(&self, ty: &Any, index: usize) -> String {
+        match ty {
+            Any::Advice => self.advice_name(index),
+            Any::Fixed => self.fixed_name(index),
+            Any::Instance => self.instance_name(index),
+        }
+    }
+
+    /// A column query in an expression: base name plus `@rot` when rotated.
+    fn query(&self, base: String, rot: i32) -> String {
+        if rot == 0 {
+            base
+        } else {
+            format!("{base}@{rot}")
+        }
+    }
+}
+
+/// Dump `circuit` (already known to verify) to a pretty JSON string, using positional column names.
 pub fn dump<F, C>(k: u32, circuit: &C, instances: Vec<Vec<F>>) -> String
+where
+    F: PrimeField + FromUniformBytes<64> + Ord,
+    C: Circuit<F>,
+{
+    dump_named(k, circuit, instances, &ColumnNames::default())
+}
+
+/// Dump `circuit` to a pretty JSON string, labelling columns with `names` everywhere.
+pub fn dump_named<F, C>(k: u32, circuit: &C, instances: Vec<Vec<F>>, names: &ColumnNames) -> String
 where
     F: PrimeField + FromUniformBytes<64> + Ord,
     C: Circuit<F>,
@@ -27,10 +114,11 @@ where
     let n_instance = cs.num_instance_columns();
     let n_selectors = cs.num_selectors();
 
-    let advice_names: Vec<String> = (0..n_advice).map(|i| format!("a{i}")).collect();
-    let fixed_names: Vec<String> = (0..n_fixed).map(|i| format!("f{i}")).collect();
-    let instance_names: Vec<String> = (0..n_instance).map(|i| format!("i{i}")).collect();
-    let selector_names: Vec<String> = (0..n_selectors).map(|i| format!("q{i}")).collect();
+    let naming = Naming::resolve(names, n_advice, n_fixed, n_instance, n_selectors);
+    let advice_names = &naming.advice;
+    let fixed_names = &naming.fixed;
+    let instance_names = &naming.instance;
+    let selector_names = &naming.selectors;
 
     let mut notes: Vec<String> = Vec::new();
     notes.push(
@@ -42,7 +130,7 @@ where
     // ---- gates ----
     let mut gates_json: Vec<Value> = Vec::new();
     for gate in cs.gates() {
-        translate_gate(gate.name(), gate.polynomials(), &mut gates_json, &mut notes);
+        translate_gate(gate.name(), gate.polynomials(), &naming, &mut gates_json, &mut notes);
     }
 
     // ---- lookups + their tables ----
@@ -57,6 +145,7 @@ where
             arg.input_expressions(),
             arg.table_expressions(),
             &prover,
+            &naming,
             &mut tables_json,
             &mut lookups_json,
             &mut lookup_table_cols,
@@ -75,7 +164,7 @@ where
         .permutation()
         .get_columns()
         .iter()
-        .map(|c| column_name(c.column_type(), c.index()))
+        .map(|c| naming.column(c.column_type(), c.index()))
         .collect();
 
     // ---- rows ----
@@ -163,9 +252,9 @@ where
         "subtitle": "structure from a fresh ConstraintSystem; values from MockProver",
         "modulus": modulus,
         "columns": {
-            "advice": advice_names,
-            "selectors": selector_names,
-            "instance": instance_names,
+            "advice": advice_names.clone(),
+            "selectors": selector_names.clone(),
+            "instance": instance_names.clone(),
             "fixed": fixed_col_names,
         },
         "equality": equality,
@@ -188,15 +277,6 @@ struct Node {
     prec: u8, // 0 = atom, 1 = product/negation, 2 = sum
     ok: bool,
     reason: Option<String>,
-}
-
-fn column_name(ty: &Any, index: usize) -> String {
-    let p = match ty {
-        Any::Advice => "a",
-        Any::Fixed => "f",
-        Any::Instance => "i",
-    };
-    format!("{p}{index}")
 }
 
 /// Cell JSON: label and value are both the decimal of the field element's canonical repr.
@@ -227,6 +307,7 @@ fn as_selector<F: PrimeField>(e: &Expression<F>) -> Option<usize> {
 fn translate_gate<F: PrimeField>(
     gate_name: &str,
     polys: &[Expression<F>],
+    naming: &Naming,
     gates_json: &mut Vec<Value>,
     notes: &mut Vec<String>,
 ) {
@@ -245,10 +326,10 @@ fn translate_gate<F: PrimeField>(
             .collect();
 
         if sels.len() == 1 && !rest.is_empty() {
-            let nodes: Vec<Node> = rest.iter().map(|e| translate(e)).collect();
+            let nodes: Vec<Node> = rest.iter().map(|e| translate(e, naming)).collect();
             if let Some(bad) = nodes.iter().find(|n| !n.ok) {
                 unsupported.push((
-                    translate(poly).text,
+                    translate(poly, naming).text,
                     bad.reason.clone().unwrap_or_else(|| "unsupported leaf".into()),
                 ));
             } else {
@@ -268,7 +349,7 @@ fn translate_gate<F: PrimeField>(
             } else {
                 "polynomial is a bare selector".to_string()
             };
-            unsupported.push((translate(poly).text, reason));
+            unsupported.push((translate(poly, naming).text, reason));
         }
     }
 
@@ -281,7 +362,7 @@ fn translate_gate<F: PrimeField>(
         };
         gates_json.push(json!({
             "name": name,
-            "selector": format!("q{sel}"),
+            "selector": naming.selector_name(sel),
             "constraints": constraints,
         }));
     }
@@ -289,7 +370,7 @@ fn translate_gate<F: PrimeField>(
     for (raw, reason) in unsupported {
         gates_json.push(json!({
             "name": gate_name,
-            "selector": "q0",
+            "selector": naming.selector_name(0),
             "constraints": [],
             "unsupported": true,
             "raw": raw,
@@ -305,6 +386,7 @@ fn translate_lookup<F: PrimeField + Ord + FromUniformBytes<64>>(
     input_exprs: &[Expression<F>],
     table_exprs: &[Expression<F>],
     prover: &MockProver<F>,
+    naming: &Naming,
     tables_json: &mut Vec<Value>,
     lookups_json: &mut Vec<Value>,
     lookup_table_cols: &mut Vec<usize>,
@@ -339,7 +421,7 @@ fn translate_lookup<F: PrimeField + Ord + FromUniformBytes<64>>(
                 _ => sel = Some(s),
             }
         }
-        let nodes: Vec<Node> = rest.iter().map(|e| translate(e)).collect();
+        let nodes: Vec<Node> = rest.iter().map(|e| translate(e, naming)).collect();
         if nodes.iter().any(|nn| !nn.ok) {
             ok = false;
             break;
@@ -379,7 +461,7 @@ fn translate_lookup<F: PrimeField + Ord + FromUniformBytes<64>>(
     // build table rows from the fixed columns' assigned values across usable rows
     let fixed = prover.fixed();
     let usable = prover.usable_rows().end;
-    let table_names: Vec<String> = table_fixed_cols.iter().map(|&i| format!("f{i}")).collect();
+    let table_names: Vec<String> = table_fixed_cols.iter().map(|&i| naming.fixed_name(i)).collect();
     let mut table_rows: Vec<Value> = Vec::new();
     for row in 0..usable {
         let mut tuple: Vec<String> = Vec::new();
@@ -408,7 +490,7 @@ fn translate_lookup<F: PrimeField + Ord + FromUniformBytes<64>>(
     let mut lookup = Map::new();
     lookup.insert("name".into(), json!(format!("lookup{n}")));
     if let Some(s) = sel {
-        lookup.insert("selector".into(), json!(format!("q{s}")));
+        lookup.insert("selector".into(), json!(naming.selector_name(s)));
     }
     lookup.insert("inputs".into(), json!(inputs_text));
     lookup.insert("table".into(), json!(table_name));
@@ -444,7 +526,7 @@ fn join_product(nodes: &[Node]) -> String {
 }
 
 /// Structural translation of an expression (no top-level selector expected).
-fn translate<F: PrimeField>(e: &Expression<F>) -> Node {
+fn translate<F: PrimeField>(e: &Expression<F>, naming: &Naming) -> Node {
     match e {
         Expression::Constant(c) => Node {
             text: field_to_decimal(c),
@@ -453,25 +535,25 @@ fn translate<F: PrimeField>(e: &Expression<F>) -> Node {
             reason: None,
         },
         Expression::Selector(s) => Node {
-            text: format!("q{}", s.index()),
+            text: naming.selector_name(s.index()),
             prec: 0,
             ok: false,
             reason: Some("selector not a top-level product factor".into()),
         },
         Expression::Fixed(q) => Node {
-            text: query_name("f", q.column_index(), q.rotation().0),
+            text: naming.query(naming.fixed_name(q.column_index()), q.rotation().0),
             prec: 0,
             ok: true,
             reason: None,
         },
         Expression::Advice(q) => Node {
-            text: query_name("a", q.column_index(), q.rotation().0),
+            text: naming.query(naming.advice_name(q.column_index()), q.rotation().0),
             prec: 0,
             ok: true,
             reason: None,
         },
         Expression::Instance(q) => Node {
-            text: query_name("i", q.column_index(), q.rotation().0),
+            text: naming.query(naming.instance_name(q.column_index()), q.rotation().0),
             prec: 0,
             ok: false,
             reason: Some("instance query in gate".into()),
@@ -483,7 +565,7 @@ fn translate<F: PrimeField>(e: &Expression<F>) -> Node {
             reason: Some("challenge".into()),
         },
         Expression::Negated(a) => {
-            let inner = translate(a);
+            let inner = translate(a, naming);
             Node {
                 text: format!("-({})", inner.text),
                 prec: 1,
@@ -492,8 +574,8 @@ fn translate<F: PrimeField>(e: &Expression<F>) -> Node {
             }
         }
         Expression::Sum(a, b) => {
-            let la = translate(a);
-            let lb = translate(b);
+            let la = translate(a, naming);
+            let lb = translate(b, naming);
             let reason = la.reason.clone().or_else(|| lb.reason.clone());
             Node {
                 text: format!("{} + {}", la.text, lb.text),
@@ -503,8 +585,8 @@ fn translate<F: PrimeField>(e: &Expression<F>) -> Node {
             }
         }
         Expression::Product(a, b) => {
-            let la = translate(a);
-            let lb = translate(b);
+            let la = translate(a, naming);
+            let lb = translate(b, naming);
             let reason = la.reason.clone().or_else(|| lb.reason.clone());
             Node {
                 text: format!("{} * {}", wrap(&la), wrap(&lb)),
@@ -514,7 +596,7 @@ fn translate<F: PrimeField>(e: &Expression<F>) -> Node {
             }
         }
         Expression::Scaled(a, c) => {
-            let la = translate(a);
+            let la = translate(a, naming);
             Node {
                 text: format!("{} * {}", field_to_decimal(c), wrap(&la)),
                 prec: 1,
@@ -522,14 +604,6 @@ fn translate<F: PrimeField>(e: &Expression<F>) -> Node {
                 reason: la.reason,
             }
         }
-    }
-}
-
-fn query_name(prefix: &str, col: usize, rot: i32) -> String {
-    if rot == 0 {
-        format!("{prefix}{col}")
-    } else {
-        format!("{prefix}{col}@{rot}")
     }
 }
 

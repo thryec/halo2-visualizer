@@ -2,41 +2,41 @@
   "chips": [],
   "columns": {
     "advice": [
-      "a0",
-      "a1",
-      "a2"
+      "a",
+      "b",
+      "c"
     ],
     "fixed": [],
     "instance": [
-      "i0"
+      "instance"
     ],
     "selectors": [
-      "q0",
-      "q1"
+      "q_add",
+      "q_mul"
     ]
   },
   "copyConstraints": [],
   "dumperNotes": "copy constraints not exposed by halo2 public API (permutation assembly is private); region names unavailable (dev::Region is private)",
   "equality": [
-    "a0",
-    "a1",
-    "a2",
-    "i0"
+    "a",
+    "b",
+    "c",
+    "instance"
   ],
   "gates": [
     {
       "constraints": [
-        "a0 + a1 + -(a2)"
+        "a + b + -(c)"
       ],
       "name": "add gate",
-      "selector": "q0"
+      "selector": "q_add"
     },
     {
       "constraints": [
-        "a0 * a1 + -(a2)"
+        "a * b + -(c)"
       ],
       "name": "mul gate",
-      "selector": "q1"
+      "selector": "q_mul"
     }
   ],
   "instanceConstraints": [],
@@ -45,11 +45,11 @@
   "rows": [
     {
       "cells": {
-        "a0": {
+        "a": {
           "label": "2",
           "value": "2"
         },
-        "i0": {
+        "instance": {
           "label": "34",
           "value": "34"
         }
@@ -61,15 +61,15 @@
     },
     {
       "cells": {
-        "a0": {
+        "a": {
           "label": "2",
           "value": "2"
         },
-        "a1": {
+        "b": {
           "label": "2",
           "value": "2"
         },
-        "a2": {
+        "c": {
           "label": "4",
           "value": "4"
         }
@@ -78,20 +78,20 @@
       "op": "",
       "region": "",
       "selectors": {
-        "q1": 1
+        "q_mul": 1
       }
     },
     {
       "cells": {
-        "a0": {
+        "a": {
           "label": "4",
           "value": "4"
         },
-        "a1": {
+        "b": {
           "label": "4",
           "value": "4"
         },
-        "a2": {
+        "c": {
           "label": "16",
           "value": "16"
         }
@@ -100,20 +100,20 @@
       "op": "",
       "region": "",
       "selectors": {
-        "q1": 1
+        "q_mul": 1
       }
     },
     {
       "cells": {
-        "a0": {
+        "a": {
           "label": "16",
           "value": "16"
         },
-        "a1": {
+        "b": {
           "label": "2",
           "value": "2"
         },
-        "a2": {
+        "c": {
           "label": "32",
           "value": "32"
         }
@@ -122,20 +122,20 @@
       "op": "",
       "region": "",
       "selectors": {
-        "q1": 1
+        "q_mul": 1
       }
     },
     {
       "cells": {
-        "a0": {
+        "a": {
           "label": "32",
           "value": "32"
         },
-        "a1": {
+        "b": {
           "label": "2",
           "value": "2"
         },
-        "a2": {
+        "c": {
           "label": "34",
           "value": "34"
         }
@@ -144,7 +144,7 @@
       "op": "",
       "region": "",
       "selectors": {
-        "q0": 1
+        "q_add": 1
       }
     }
   ],

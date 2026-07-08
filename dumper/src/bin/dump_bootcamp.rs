@@ -1,7 +1,7 @@
 //! Dump three bootcamp circuits to dumper/out/*.json.
 //! Circuits are replicated inline (no dependency on the bootcamp crates).
 
-use dumper::dump;
+use dumper::{dump_named, ColumnNames};
 use ff::PrimeField;
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::dev::MockProver;
@@ -392,7 +392,14 @@ fn main() {
         MockProver::run(4, &circuit, instances.clone())
             .unwrap()
             .assert_satisfied();
-        write_dump("fibonacci", dump(4, &circuit, instances));
+        // configure order: advice a, fixed b (enable_constant), selector q
+        let names = ColumnNames {
+            advice: vec!["fib".into()],
+            fixed: vec!["cnst".into()],
+            selectors: vec!["q_fib".into()],
+            ..Default::default()
+        };
+        write_dump("fibonacci", dump_named(4, &circuit, instances, &names));
     }
 
     // ---- iszero (x = 0 -> out = 1) ----
@@ -402,7 +409,14 @@ fn main() {
         MockProver::run(4, &circuit, instances.clone())
             .unwrap()
             .assert_satisfied();
-        write_dump("iszero", dump(4, &circuit, instances));
+        // configure order: instance, then chip advice x, x_inv, out, selector q
+        let names = ColumnNames {
+            advice: vec!["x".into(), "x_inv".into(), "out".into()],
+            selectors: vec!["q".into()],
+            instance: vec!["instance".into()],
+            ..Default::default()
+        };
+        write_dump("iszero", dump_named(4, &circuit, instances, &names));
     }
 
     // ---- a^5 + a = b (a = 2 -> b = 34) ----
@@ -417,7 +431,14 @@ fn main() {
         MockProver::run(5, &circuit, instances.clone())
             .unwrap()
             .assert_satisfied();
-        write_dump("addmul", dump(5, &circuit, instances));
+        // configure order: advice a, b, c, instance; chip selectors q_add, q_mul
+        let names = ColumnNames {
+            advice: vec!["a".into(), "b".into(), "c".into()],
+            selectors: vec!["q_add".into(), "q_mul".into()],
+            instance: vec!["instance".into()],
+            ..Default::default()
+        };
+        write_dump("addmul", dump_named(5, &circuit, instances, &names));
     }
 
     println!("done");

@@ -2,29 +2,29 @@
   "chips": [],
   "columns": {
     "advice": [
-      "a0"
+      "fib"
     ],
     "fixed": [
-      "f0"
+      "cnst"
     ],
     "instance": [],
     "selectors": [
-      "q0"
+      "q_fib"
     ]
   },
   "copyConstraints": [],
   "dumperNotes": "copy constraints not exposed by halo2 public API (permutation assembly is private); region names unavailable (dev::Region is private)",
   "equality": [
-    "a0",
-    "f0"
+    "fib",
+    "cnst"
   ],
   "gates": [
     {
       "constraints": [
-        "a0 + a0@1 + -(a0@2)"
+        "fib + fib@1 + -(fib@2)"
       ],
       "name": "add gate",
-      "selector": "q0"
+      "selector": "q_fib"
     }
   ],
   "instanceConstraints": [],
@@ -33,11 +33,11 @@
   "rows": [
     {
       "cells": {
-        "a0": {
+        "cnst": {
           "label": "1",
           "value": "1"
         },
-        "f0": {
+        "fib": {
           "label": "1",
           "value": "1"
         }
@@ -46,16 +46,16 @@
       "op": "",
       "region": "",
       "selectors": {
-        "q0": 1
+        "q_fib": 1
       }
     },
     {
       "cells": {
-        "a0": {
+        "cnst": {
           "label": "1",
           "value": "1"
         },
-        "f0": {
+        "fib": {
           "label": "1",
           "value": "1"
         }
@@ -64,12 +64,12 @@
       "op": "",
       "region": "",
       "selectors": {
-        "q0": 1
+        "q_fib": 1
       }
     },
     {
       "cells": {
-        "a0": {
+        "fib": {
           "label": "2",
           "value": "2"
         }
@@ -78,12 +78,12 @@
       "op": "",
       "region": "",
       "selectors": {
-        "q0": 1
+        "q_fib": 1
       }
     },
     {
       "cells": {
-        "a0": {
+        "fib": {
           "label": "3",
           "value": "3"
         }
@@ -95,7 +95,7 @@
     },
     {
       "cells": {
-        "a0": {
+        "fib": {
           "label": "5",
           "value": "5"
         }
